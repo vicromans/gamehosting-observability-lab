@@ -1,0 +1,4 @@
+flask
+mysql-connector-python
+prometheus-flask-exporter
+requests
