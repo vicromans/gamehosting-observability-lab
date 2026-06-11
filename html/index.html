@@ -3,84 +3,288 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VeldrikLabs</title>
+  <title>VeldrikLabs | Infrastructure, Automation & Observability</title>
   <style>
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #0f172a;
+      background: #020617;
       color: #e5e7eb;
-      min-height: 100vh;
+    }
+
+    header {
+      padding: 24px 8%;
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      text-align: center;
+      border-bottom: 1px solid #1e293b;
     }
-    .card {
-      max-width: 850px;
-      padding: 48px;
-    }
-    h1 {
-      font-size: 58px;
-      margin-bottom: 12px;
+
+    .logo {
+      font-size: 24px;
+      font-weight: bold;
       color: #ffffff;
     }
-    .subtitle {
-      font-size: 24px;
-      color: #93c5fd;
-      margin-bottom: 24px;
+
+    nav a {
+      color: #cbd5e1;
+      margin-left: 24px;
+      text-decoration: none;
+      font-size: 15px;
     }
-    p {
-      font-size: 18px;
+
+    nav a:hover { color: #93c5fd; }
+
+    .hero {
+      padding: 90px 8% 70px;
+      text-align: center;
+      background:
+        radial-gradient(circle at top, #1e3a8a 0, transparent 38%),
+        #020617;
+    }
+
+    .tagline {
+      color: #93c5fd;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-size: 14px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: 62px;
+      line-height: 1.05;
+      margin: 0 auto 22px;
+      max-width: 980px;
+      color: #ffffff;
+    }
+
+    .hero p {
+      font-size: 20px;
       line-height: 1.6;
+      max-width: 780px;
+      margin: 0 auto 34px;
       color: #cbd5e1;
     }
-    .services {
-      margin-top: 32px;
+
+    .buttons {
       display: flex;
-      gap: 12px;
+      gap: 16px;
       justify-content: center;
       flex-wrap: wrap;
     }
-    .badge {
-      border: 1px solid #334155;
-      padding: 10px 16px;
+
+    .btn {
+      padding: 14px 22px;
       border-radius: 999px;
-      background: #111827;
-      color: #e5e7eb;
-    }
-    a {
-      color: #93c5fd;
       text-decoration: none;
       font-weight: bold;
+      display: inline-block;
     }
-    .links {
-      margin-top: 32px;
+
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn-secondary {
+      border: 1px solid #334155;
+      color: #e5e7eb;
+    }
+
+    section {
+      padding: 70px 8%;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 34px;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .section-subtitle {
+      text-align: center;
+      color: #94a3b8;
+      max-width: 700px;
+      margin: 0 auto 42px;
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+    }
+
+    .card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 18px;
+      padding: 28px;
+    }
+
+    .card h3 {
+      margin-top: 0;
+      color: #ffffff;
+      font-size: 22px;
+    }
+
+    .card p {
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+
+    .status {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 22px;
+      padding: 34px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      text-align: center;
+    }
+
+    .metric {
+      padding: 18px;
+      background: #020617;
+      border-radius: 16px;
+      border: 1px solid #1e293b;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 26px;
+      color: #22c55e;
+      margin-bottom: 8px;
+    }
+
+    .metric span {
+      color: #94a3b8;
+    }
+
+    .contact {
+      text-align: center;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 24px;
+      padding: 46px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px;
+      color: #64748b;
+      border-top: 1px solid #1e293b;
+    }
+
+    @media (max-width: 850px) {
+      h1 { font-size: 42px; }
+      .grid { grid-template-columns: 1fr; }
+      .status { grid-template-columns: 1fr 1fr; }
+      header { flex-direction: column; gap: 16px; }
+      nav a { margin: 0 10px; }
+    }
+
+    @media (max-width: 500px) {
+      .status { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <main class="card">
-    <h1>VeldrikLabs</h1>
-    <div class="subtitle">Infrastructure, Automation & Observability</div>
 
-    <p>
-      We build and manage reliable Linux, Docker, monitoring and automation platforms
-      for small businesses, game servers and technical projects.
+<header>
+  <div class="logo">VeldrikLabs</div>
+  <nav>
+    <a href="#services">Services</a>
+    <a href="#platform">Platform</a>
+    <a href="https://grafana.veldriklabs.com">Grafana</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <div class="tagline">Linux • Docker • Monitoring • Automation</div>
+  <h1>Reliable infrastructure for modern technical projects.</h1>
+  <p>
+    VeldrikLabs builds and manages VPS, Docker, observability and automation
+    platforms for small businesses, game servers and cloud-native projects.
+  </p>
+  <div class="buttons">
+    <a class="btn btn-primary" href="mailto:contact@veldriklabs.com">Contact Us</a>
+    <a class="btn btn-secondary" href="https://grafana.veldriklabs.com">View Monitoring</a>
+  </div>
+</div>
+
+<section id="services">
+  <h2 class="section-title">Services</h2>
+  <p class="section-subtitle">
+    Practical infrastructure services focused on reliability, visibility and automation.
+  </p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>VPS Management</h3>
+      <p>Linux server setup, hardening, Docker deployments, reverse proxies and SSL certificates.</p>
+    </div>
+
+    <div class="card">
+      <h3>Observability</h3>
+      <p>Prometheus, Grafana, Loki, alerts and dashboards to understand system health in real time.</p>
+    </div>
+
+    <div class="card">
+      <h3>Automation</h3>
+      <p>API integrations, scheduled jobs, bots and automated workflows for small business operations.</p>
+    </div>
+  </div>
+</section>
+
+<section id="platform">
+  <h2 class="section-title">Platform Status</h2>
+  <p class="section-subtitle">
+    VeldrikLabs is running on a production VPS with HTTPS, monitoring, logging and containerized services.
+  </p>
+
+  <div class="status">
+    <div class="metric">
+      <strong>Online</strong>
+      <span>Landing Page</span>
+    </div>
+    <div class="metric">
+      <strong>Online</strong>
+      <span>API</span>
+    </div>
+    <div class="metric">
+      <strong>Active</strong>
+      <span>Grafana</span>
+    </div>
+    <div class="metric">
+      <strong>Enabled</strong>
+      <span>HTTPS</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="contact">
+    <h2 class="section-title">Build, monitor and automate with confidence.</h2>
+    <p class="section-subtitle">
+      Need help with Linux, Docker, monitoring, VPS hosting or automation?
     </p>
+    <a class="btn btn-primary" href="mailto:contact@veldriklabs.com">Start a Conversation</a>
+  </div>
+</section>
 
-    <div class="services">
-      <div class="badge">Linux VPS</div>
-      <div class="badge">Docker</div>
-      <div class="badge">Nginx</div>
-      <div class="badge">Grafana</div>
-      <div class="badge">Monitoring</div>
-      <div class="badge">Automation</div>
-    </div>
+<footer>
+  © 2026 VeldrikLabs. Infrastructure, Automation & Observability.
+</footer>
 
-    <div class="links">
-      <a href="https://grafana.veldriklabs.com">Grafana Dashboard</a>
-    </div>
-  </main>
 </body>
 </html>
