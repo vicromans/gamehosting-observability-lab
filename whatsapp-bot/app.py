@@ -1240,6 +1240,17 @@ def customer_conversation(customer_id):
             if manual_reply and customer_phone_row:
                 phone_number = customer_phone_row["phone_number"]
 
+                send_whatsapp_message(
+                    phone_number,
+                    manual_reply
+                )
+
+                cursor.execute("""
+                    UPDATE customers
+                    SET human_required = 0
+                    WHERE id = %s
+                """, (customer_id,))
+
                 cursor.execute("""
                     INSERT INTO whatsapp_messages
                         (business_id, phone_number, incoming_message, bot_reply, detected_intent)
