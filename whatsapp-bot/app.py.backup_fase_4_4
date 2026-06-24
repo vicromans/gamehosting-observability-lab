@@ -1,0 +1,1455 @@
+from flask import Flask, request, jsonify, redirect
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+import pymysql
+import os
+import requests
+
+app = Flask(__name__)
+
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "veldriklabs_verify_2026")
+
+conversation_state = {}
+
+def send_whatsapp_message(to, message):
+    url = f"https://graph.facebook.com/v23.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {
+            "body": message
+        }
+    }
+
+    response = requests.post(url, headers=headers, json=payload, timeout=10)
+    print("WHATSAPP SEND STATUS:", response.status_code)
+    print("WHATSAPP SEND RESPONSE:", response.text)
+
+    return response
+
+VERIFY_TOKEN = "veldriklabs_whatsapp_verify"
+
+DB_CONFIG = {
+    "host": "mariadb",
+    "user": "gameuser",
+    "password": "gamepass123",
+    "database": "gamehosting",
+    "charset": "utf8mb4",
+    "cursorclass": pymysql.cursors.DictCursor
+}
+
+@app.get("/health")
+@app.get("/whatsapp/health")
+def health():
+    return jsonify({"status": "ok", "service": "whatsapp-bot"})
+
+@app.get("/webhook")
+@app.get("/whatsapp/webhook")
+def verify_webhook():
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
+
+    if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
+        print("WEBHOOK VERIFIED", flush=True)
+        return challenge, 200
+
+    return "Verification failed", 403
+
+def get_db_connection():
+    return pymysql.connect(**DB_CONFIG)
+
+def save_appointment(phone_number, customer_name, service_name, appointment_date, appointment_time):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO appointments (
+            business_id,
+            customer_phone,
+            customer_name,
+            service_name,
+            appointment_date,
+            appointment_time,
+            status,
+            deposit_required,
+            deposit_paid,
+            notes
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        1,
+        phone_number,
+        customer_name,
+        service_name,
+        appointment_date,
+        appointment_time,
+        "pending",
+        150.00,
+        False,
+        "Cita creada desde WhatsApp bot"
+    ))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+def parse_time_from_message(message):
+    text = message.lower().strip()
+
+    if any(phrase in text for phrase in ["10", "diez"]):
+        return "10:00:00"
+
+    if any(phrase in text for phrase in ["12", "doce", "medio dia", "mediodia", "medio día", "mediodía"]):
+        return "12:00:00"
+
+    if any(phrase in text for phrase in ["15", "3", "tres", "3 pm", "3pm"]):
+        return "15:00:00"
+
+    return None
+
+def parse_date_from_message(message):
+    text = message.lower().strip()
+    today = datetime.now().date()
+
+    if "hoy" in text:
+        return today
+
+    if "pasado mañana" in text or "pasado manana" in text:
+        return today + timedelta(days=2)
+
+    if "mañana" in text or "manana" in text:
+        return today + timedelta(days=1)
+
+    weekdays = {
+        "lunes": 0,
+        "martes": 1,
+        "miercoles": 2,
+        "miércoles": 2,
+        "jueves": 3,
+        "viernes": 4,
+        "sabado": 5,
+        "sábado": 5,
+        "domingo": 6,
+    }
+
+    for day_name, day_number in weekdays.items():
+        if day_name in text:
+            days_ahead = day_number - today.weekday()
+            if days_ahead <= 0:
+                days_ahead += 7
+            return today + timedelta(days=days_ahead)
+
+    return None
+
+def is_time_slot_available(appointment_date, appointment_time):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT COUNT(*) AS total
+        FROM appointments
+        WHERE business_id = %s
+          AND appointment_date = %s
+          AND appointment_time = %s
+          AND status != 'cancelled'
+    """, (1, appointment_date, appointment_time))
+
+    row = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if isinstance(row, dict):
+        return row["total"] == 0
+
+    return row[0] == 0
+
+AVAILABLE_TIMES = ["10:00:00", "12:00:00", "15:00:00"]
+
+def format_time_for_user(time_value):
+    if time_value == "10:00:00":
+        return "10:00"
+    if time_value == "12:00:00":
+        return "12:00"
+    if time_value == "15:00:00":
+        return "15:00"
+    return time_value[:5]
+
+
+def get_available_times(appointment_date):
+    available = []
+
+    for time_slot in AVAILABLE_TIMES:
+        if is_time_slot_available(appointment_date, time_slot):
+            available.append(time_slot)
+
+    return available
+
+
+def format_available_times_message(available_times):
+    if not available_times:
+        return None
+
+    readable = [format_time_for_user(t) for t in available_times]
+
+    if len(readable) == 1:
+        return readable[0]
+
+    if len(readable) == 2:
+        return f"{readable[0]} o {readable[1]}"
+
+    return f"{', '.join(readable[:-1])} o {readable[-1]}"
+
+def build_reply(message, phone_number):
+    text = message.lower().strip()
+    state = conversation_state.get(phone_number, {})
+
+    if state.get("step") == "human_required":
+        return "Ya canalicé tu conversación con una asesora de Aura Beauty 😊 En breve te responderán personalmente."
+
+    if any(word in text for word in ["gracias", "muchas gracias", "thank you", "thanks", "mil gracias"]):
+        return "¡Con gusto! 😊 Gracias por contactar a Aura Beauty. Si necesitas algo más, aquí estoy."
+
+    if any(word in text for word in ["bye", "adios", "adiós", "hasta luego", "nos vemos", "chao", "ciao"]):
+        return "¡Hasta luego! 😊 Gracias por contactar a Aura Beauty. Te esperamos pronto."
+
+    if state.get("step") == "waiting_service":
+        if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
+            conversation_state[phone_number] = {
+                "step": "waiting_date",
+                "service": "pestañas"
+            }
+            return "Perfecto ✨ ¿Qué día te gustaría agendar tu cita de pestañas?"
+
+        if any(word in text for word in ["uña", "uñas", "nail", "nails"]):
+            conversation_state[phone_number] = {
+                "step": "waiting_date",
+                "service": "uñas"
+            }
+            return "Perfecto 💅 ¿Qué día te gustaría agendar tu cita de uñas?"
+
+        if any(word in text for word in ["alisado", "keratina", "cabello", "pelo"]):
+            conversation_state[phone_number] = {
+                "step": "waiting_date",
+                "service": "alisado"
+            }
+            return "Perfecto ✨ ¿Qué día te gustaría agendar tu cita de alisado?"
+
+        return "¿Qué servicio deseas agendar: pestañas, uñas o alisado?"
+
+    if state.get("step") == "waiting_date":
+        appointment_date = parse_date_from_message(message)
+
+        if not appointment_date:
+            return "¿Qué día te gustaría? Puedes decir: hoy, mañana, pasado mañana, lunes, martes, miércoles, jueves, viernes, sábado o domingo 😊"
+
+        conversation_state[phone_number] = {
+            "step": "waiting_time",
+            "service": state.get("service"),
+            "date_text": message,
+            "appointment_date": str(appointment_date)
+        }
+
+        available_times = get_available_times(str(appointment_date))
+        available_text = format_available_times_message(available_times)
+
+        if not available_text:
+            conversation_state[phone_number] = {
+                "step": "waiting_date",
+                "service": state.get("service"),
+                "retry_reason": "no_availability"
+            }
+            return "Lo siento 😔 Ya no tengo horarios disponibles para ese día. ¿Qué otro día te gustaría intentar?"
+
+        return f"Perfecto 😊 Tengo disponible {available_text}. ¿Qué horario prefieres?"
+
+    if state.get("step") == "waiting_time":
+        selected_time = parse_time_from_message(message)
+
+        if not selected_time:
+            return "Por ahora tenemos estos horarios: 10:00, 12:00 o 15:00. También puedes decir: a las 10, medio día o 3 pm 😊"
+
+        service = state.get("service", "servicio")
+        date_text = state.get("date_text", "pendiente")
+
+        appointment_date = state.get("appointment_date")
+
+        if not is_time_slot_available(appointment_date, selected_time):
+
+            available_times = get_available_times(appointment_date)
+            available_text = format_available_times_message(available_times)
+
+            if not available_text:
+                conversation_state[phone_number] = {}
+                return "Lo siento 😔 Ese día ya no tiene horarios disponibles. ¿Quieres intentar con otro día?"
+
+            return f"Ese horario ya está ocupado 😔 Tengo disponible {available_text}. ¿Cuál prefieres?"
+
+        conversation_state[phone_number] = {
+            "step": "waiting_name",
+            "service": service,
+            "date_text": date_text,
+            "appointment_date": appointment_date,
+            "appointment_time": selected_time
+        }
+
+        return "Perfecto 😊 ¿A nombre de quién agendo la cita?"
+
+    if state.get("step") == "waiting_name":
+        customer_name = message.strip()
+
+        if len(customer_name) < 2:
+            return "¿Me puedes decir el nombre para agendar la cita, por favor? 😊"
+
+        service = state.get("service")
+        date_text = state.get("date_text")
+        appointment_date = state.get("appointment_date")
+        appointment_time = state.get("appointment_time")
+
+        save_appointment(
+            phone_number,
+            customer_name,
+            service,
+            appointment_date,
+            appointment_time
+        )
+
+        conversation_state[phone_number] = {}
+
+        return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]}. Para confirmar se requiere anticipo de $150."
+
+    if state.get("waiting_for") == "hair_length":
+        if any(word in text for word in ["corto", "corta"]):
+            conversation_state[phone_number] = {}
+            return "Perfecto 😊 Para cabello corto, el alisado tarda aprox. 4 horas. ¿Quieres agendar una cita?"
+        if any(word in text for word in ["medio", "mediano", "media"]):
+            conversation_state[phone_number] = {}
+            return "Perfecto 😊 Para cabello medio, el alisado requiere valoración de largo y volumen. ¿Quieres agendar una cita?"
+        if any(word in text for word in ["largo", "larga"]):
+            conversation_state[phone_number] = {}
+            return "Perfecto 😊 Para cabello largo, el precio depende del volumen. ¿Quieres agendar una cita?"
+
+        return "Para ayudarte con el alisado, dime si tu cabello es corto, medio o largo 😊"
+
+    if any(word in text for word in ["alisado", "cabello", "pelo", "keratina"]):
+        conversation_state[phone_number] = {"waiting_for": "hair_length"}
+        return "El alisado progresivo depende del largo del cabello y dura aproximadamente 4 horas. ¿Tu cabello es corto, medio o largo?"
+
+
+    if any(word in text for word in ["hola", "buenas", "buenos dias", "buenos días", "buenas tardes", "buenas noches", "buen dia", "que onda", "qué onda", "que tal", "qué tal",
+    "hola que tal", "hola qué tal", "hey", "hi", "kiubo", "quiubo", "que hay", "que rollo"]):
+        return "¡Hola! 😊 Bienvenida a Aura Beauty. Puedo ayudarte con citas, precios, pestañas, uñas o alisado. ¿Qué necesitas?"
+
+    if any(word in text for word in ["cita", "agendar", "agenda", "horario", "disponible"]):
+        conversation_state[phone_number] = {"step": "waiting_service"}
+        return "Claro 😊 Te ayudo a agendar. ¿Qué servicio necesitas: pestañas, uñas o alisado?"
+
+    if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
+        return "Para pestañas tenemos promoción en $350 ✨ Para agendar se requiere anticipo de $150. ¿Quieres agendar una cita?"
+
+    if any(word in text for word in ["uña", "uñas", "nail", "nails"]):
+        return "Para uñas tenemos opciones desde $125 en gel semipermanente. Acrílico desde $250 y esculturales desde $300 según largo. Para agendar se requiere anticipo de $150 💅 ¿Qué servicio buscas?"
+
+    if any(word in text for word in ["alisado", "cabello", "pelo", "keratina"]):
+        return "El alisado progresivo depende del largo del cabello y dura aproximadamente 4 horas. ¿Tu cabello es corto, medio o largo?"
+
+    if any(word in text for word in ["precio", "costo", "cuanto", "cuánto", "$"]):
+        return "Te comparto precios base: pestañas $500, uñas según diseño y alisado según largo del cabello. ¿Sobre cuál servicio quieres más información?"
+
+    if any(phrase in text for phrase in [
+        "hablar con alguien",
+        "hablar con una persona",
+        "quiero una persona",
+        "quiero hablar con alguien",
+        "asesora",
+        "humano",
+        "persona real",
+        "me puedes comunicar",
+        "comunicarme con alguien",
+        "no entiendo",
+        "no entendi",
+        "no entendí",
+        "necesito ayuda"
+    ]):
+        conversation_state[phone_number] = {
+            "step": "human_required"
+        }
+
+        mark_human_required(phone_number)
+
+        return "Claro 😊 Voy a canalizarte con una asesora de Aura Beauty para que te ayude personalmente. En breve te responderán."
+
+    return "Perdón, no entendí bien 🙏 Puedo ayudarte con citas, precios, pestañas, uñas o alisado."
+
+@app.post("/webhook")
+@app.post("/whatsapp/webhook")
+def receive_message():
+    data = request.get_json()
+
+    print("=" * 80, flush=True)
+    print("INCOMING WHATSAPP WEBHOOK", flush=True)
+    print(data, flush=True)
+    print("=" * 80, flush=True)
+
+    try:
+        entry = data.get("entry", [])[0]
+        change = entry.get("changes", [])[0]
+        value = change.get("value", {})
+
+        contacts = value.get("contacts", [])
+        messages = value.get("messages", [])
+
+        if not messages:
+            return jsonify({"status": "no_message"}), 200
+
+        contact = contacts[0] if contacts else {}
+        message = messages[0]
+
+        phone_number = message.get("from")
+        customer_name = contact.get("profile", {}).get("name")
+        incoming_message = message.get("text", {}).get("body", "")
+        message_type = message.get("type")
+        whatsapp_message_id = message.get("id")
+
+        reply = build_reply(incoming_message, phone_number)
+
+        intent = "unknown"
+        lower_msg = incoming_message.lower()
+
+        if "cita" in lower_msg or "agendar" in lower_msg or "anticipo" in lower_msg:
+            intent = "appointment"
+        elif "pestana" in lower_msg or "pestaña" in lower_msg or "pestañas" in lower_msg:
+            intent = "lashes"
+        elif "una" in lower_msg or "uña" in lower_msg or "uñas" in lower_msg or "gelish" in lower_msg:
+            intent = "nails"
+        elif "alisado" in lower_msg or "cabello" in lower_msg:
+            intent = "hair"
+        elif "horario" in lower_msg:
+            intent = "schedule"
+        elif "hola" in lower_msg or "buenas" in lower_msg:
+            intent = "greeting"
+
+        connection = pymysql.connect(**DB_CONFIG)
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO customers (business_id, phone_number, customer_name)
+                    VALUES (%s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        customer_name = VALUES(customer_name),
+                        last_contact = CURRENT_TIMESTAMP
+                """, (1, phone_number, customer_name))
+
+                cursor.execute("""
+                    INSERT INTO whatsapp_messages
+                    (business_id, phone_number, incoming_message, bot_reply, detected_intent)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (1, phone_number, incoming_message, reply, intent))
+
+            connection.commit()
+
+        finally:
+            connection.close()
+
+        print(f"Saved WhatsApp message from {phone_number}: {incoming_message}", flush=True)
+
+        send_whatsapp_message(phone_number, reply)
+
+        return jsonify({
+            "status": "saved",
+            "phone_number": phone_number,
+            "message": incoming_message,
+            "intent": intent
+        }), 200
+
+    except Exception as e:
+        print("ERROR processing webhook:", str(e), flush=True)
+        return jsonify({"status": "error", "error": str(e)}), 200
+
+@app.get("/")
+@app.get("/whatsapp/")
+def index():
+    return jsonify({
+        "service": "VeldrikLabs WhatsApp Bot",
+        "status": "running"
+    })
+
+def ensure_customer(phone_number):
+    connection = pymysql.connect(**DB_CONFIG)
+
+    try:
+        with connection.cursor() as cursor:
+            sql = """
+                INSERT INTO customers (phone_number)
+                VALUES (%s)
+                ON DUPLICATE KEY UPDATE
+                    last_contact = CURRENT_TIMESTAMP
+            """
+            cursor.execute(sql, (phone_number,))
+
+        connection.commit()
+    finally:
+        connection.close()
+
+def mark_human_required(phone_number):
+    connection = pymysql.connect(**DB_CONFIG)
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                UPDATE customers
+                SET human_required = TRUE,
+                    last_contact = CURRENT_TIMESTAMP
+                WHERE phone_number = %s
+            """, (phone_number,))
+
+        connection.commit()
+    finally:
+        connection.close()
+
+def save_message(phone_number, incoming_message, bot_reply_text, detected_intent):
+    connection = pymysql.connect(**DB_CONFIG)
+
+    try:
+        with connection.cursor() as cursor:
+            sql = """
+                INSERT INTO whatsapp_messages
+                (phone_number, incoming_message, bot_reply, detected_intent)
+                VALUES (%s, %s, %s, %s)
+            """
+            cursor.execute(sql, (
+                phone_number,
+                incoming_message,
+                bot_reply_text,
+                detected_intent
+            ))
+
+        connection.commit()
+    finally:
+        connection.close()
+
+def bot_reply(text):
+    text = text.lower()
+
+    if "anticipo" in text or "cita" in text or "agendar" in text:
+        return "Para reservar cita se requiere un anticipo de $150 MXN. Por favor indícanos qué servicio deseas, día y horario preferido."
+
+    if "hola" in text or "buenas" in text:
+        return "Hola ✨ Bienvenida..."
+
+    if "pestaña" in text:
+        return "El servicio de pestañas tiene un precio regular de $500 MXN. Promoción actual: $350 MXN. Duración aproximada: 2 horas."
+
+    if "uña" in text or "gelish" in text:
+        return "Para cotizar uñas, por favor envía una foto del diseño que te gustaría realizarte. El precio depende del diseño."
+
+    if "alisado" in text or "cabello" in text:
+        return "Para cotizar alisado progresivo, por favor envía una foto de tu cabello y comenta el largo aproximado. La duración aproximada es de 4 horas."
+
+    if "horario" in text:
+        return "Nuestro horario es de 9:00 AM a 12:00 PM y de 3:00 PM a 6:00 PM."
+
+    if "pestaña" in text or "pestana" in text or "pestañas" in text or "pestanas" in text:
+        return "El servicio de pestañas tiene un precio regular de $500 MXN. Promoción actual: $350 MXN. Duración aproximada: 2 horas."
+
+    if "uña" in text or "unas" in text or "uñas" in text or "gelish" in text:
+        return "Para cotizar uñas, por favor envía una foto del diseño que te gustaría realizarte. El precio depende del diseño."
+
+    return "Gracias por escribirnos ✨ Para ayudarte mejor, dime si te interesa: uñas, pestañas o alisado progresivo."
+
+@app.get("/test")
+@app.get("/whatsapp/test")
+def test_bot():
+    msg = request.args.get("msg", "")
+    phone = request.args.get("phone", "test-user")
+    reply = bot_reply(msg)
+
+    intent = "unknown"
+    lower_msg = msg.lower()
+
+    if "cita" in lower_msg or "agendar" in lower_msg or "anticipo" in lower_msg:
+        intent = "appointment"
+    elif "pestana" in lower_msg or "pestaña" in lower_msg:
+        intent = "lashes"
+    elif "una" in lower_msg or "uña" in lower_msg or "gelish" in lower_msg:
+        intent = "nails"
+    elif "alisado" in lower_msg or "cabello" in lower_msg:
+        intent = "hair"
+    elif "horario" in lower_msg:
+        intent = "schedule"
+    elif "hola" in lower_msg or "buenas" in lower_msg:
+        intent = "greeting"
+
+    ensure_customer(phone)
+    save_message(phone, msg, reply, intent)
+
+    return jsonify({
+        "incoming_message": msg,
+        "bot_reply": reply,
+        "detected_intent": intent,
+        "saved": True
+    })
+
+@app.get("/customers")
+@app.get("/whatsapp/customers")
+def list_customers():
+    connection = pymysql.connect(**DB_CONFIG)
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT
+                    id,
+                    phone_number,
+                    customer_name,
+                    allergy_notes,
+                    special_notes,
+                    accepted_policies,
+                    first_contact,
+                    last_contact
+                FROM customers
+                ORDER BY last_contact DESC
+                LIMIT 50
+            """)
+            customers = cursor.fetchall()
+
+        return jsonify({
+            "customers": customers,
+            "count": len(customers)
+        })
+
+    finally:
+        connection.close()
+
+def appointment_actions(a):
+    appointment_id = a["id"]
+    status = a["status"]
+
+    if status == "pending":
+        return f"""
+            <form method="POST" action="/whatsapp/dashboard/appointments/{appointment_id}/confirm" style="display:inline;">
+                <button type="submit">Confirmar</button>
+            </form>
+            <form method="POST" action="/whatsapp/dashboard/appointments/{appointment_id}/cancel" style="display:inline;">
+                <button type="submit">Cancelar</button>
+            </form>
+        """
+
+    if status == "confirmed":
+        return f"""
+            <form method="POST" action="/whatsapp/dashboard/appointments/{appointment_id}/complete" style="display:inline;">
+                <button type="submit">Completada</button>
+            </form>
+            <form method="POST" action="/whatsapp/dashboard/appointments/{appointment_id}/cancel" style="display:inline;">
+                <button type="submit">Cancelar</button>
+            </form>
+        """
+
+    if status == "completed":
+        return "✅ Finalizada"
+
+    if status == "cancelled":
+        return "❌ Cancelada"
+
+    return status
+
+@app.get("/dashboard")
+@app.get("/whatsapp/dashboard")
+def dashboard():
+    local_today = datetime.now(ZoneInfo("America/Mexico_City")).date()
+    connection = pymysql.connect(**DB_CONFIG)
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM businesses WHERE id = 1")
+            business = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT id, phone_number, customer_name, allergy_notes, accepted_policies, human_required, last_contact
+                FROM customers
+                WHERE business_id = 1
+                ORDER BY human_required DESC, last_contact DESC
+                LIMIT 10
+            """)
+            customers = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT
+                    id,
+                    phone_number,
+                    customer_name,
+                    last_contact
+                FROM customers
+                WHERE business_id = 1
+                  AND human_required = 1
+                ORDER BY last_contact DESC
+            """)
+            human_queue = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT id, service_name, price, duration_minutes, requires_deposit, deposit_amount, warranty_days
+                FROM services
+                WHERE business_id = 1 AND active = 1
+                ORDER BY id ASC
+            """)
+            services = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT id, phone_number, incoming_message, detected_intent, created_at
+                FROM whatsapp_messages
+                WHERE business_id = 1
+                ORDER BY created_at DESC
+                LIMIT 10
+            """)
+            messages = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT
+                    id,
+                    customer_name,
+                    customer_phone,
+                    service_name,
+                    appointment_date,
+                    appointment_time,
+                    status,
+                    deposit_required,
+                    deposit_paid,
+                    created_at
+                FROM appointments
+                WHERE business_id = 1
+                  AND appointment_date >= %s
+                ORDER BY appointment_date ASC, appointment_time ASC
+                LIMIT 20
+            """, (local_today,))
+            appointments = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT
+                    id,
+                    customer_name,
+                    customer_phone,
+                    service_name,
+                    appointment_date,
+                    appointment_time,
+                    status,
+                    deposit_required,
+                    deposit_paid
+                FROM appointments
+                WHERE business_id = 1
+                  AND appointment_date = %s
+                ORDER BY appointment_time ASC
+            """, (local_today,))
+            today_appointments = cursor.fetchall()
+
+        html = f"""
+        <html>
+        <head>
+            <title>VeldrikLabs CRM</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 35px; background: #f5f7fa; color: #222; }}
+                h1 {{ color: #222; }}
+                h2 {{ margin-top: 35px; }}
+                table {{ border-collapse: collapse; width: 100%; background: white; margin-top: 10px; }}
+                th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
+                th {{ background: #222; color: white; }}
+                .card {{ background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }}
+                .badge {{ padding: 4px 8px; border-radius: 5px; background: #e8eefc; }}
+            </style>
+        </head>
+        <body>
+            <h1>VeldrikLabs CRM</h1>
+
+            <div class="card">
+                <h2>{business["business_name"]}</h2>
+                <p><b>Tipo:</b> {business["business_type"]}</p>
+                <p><b>Propietaria:</b> {business["owner_name"]}</p>
+                <p><b>Teléfono:</b> {business["phone_number"]}</p>
+            </div>
+
+            <h2>Servicios activos</h2>
+            <table>
+                <tr>
+                    <th>Servicio</th>
+                    <th>Precio</th>
+                    <th>Duración</th>
+                    <th>Anticipo</th>
+                    <th>Garantía</th>
+                </tr>
+        """
+
+        for s in services:
+            price = "Cotización" if s["price"] is None else f'${s["price"]}'
+            deposit = f'${s["deposit_amount"]}' if s["requires_deposit"] else "No"
+            html += f"""
+                <tr>
+                    <td>{s["service_name"]}</td>
+                    <td>{price}</td>
+                    <td>{s["duration_minutes"]} min</td>
+                    <td>{deposit}</td>
+                    <td>{s["warranty_days"]} días</td>
+                </tr>
+            """
+
+        html += """
+            </table>
+
+            <h2>Clientes recientes</h2>
+            <table>
+                <tr>
+                    <th>Teléfono</th>
+                    <th>Nombre</th>
+                    <th>Alergias / notas</th>
+                    <th>Políticas</th>
+                    <th>Atención</th>
+                    <th>Último contacto</th>
+                </tr>
+        """
+
+        for c in customers:
+            policies = "Aceptadas" if c["accepted_policies"] else "Pendiente"
+            attention = "⚠️ Requiere atención" if c["human_required"] else "Bot activo"
+
+            html += f"""
+                <tr>
+                    <td>{c["phone_number"]}</td>
+                    <td>{c["customer_name"] or ""}</td>
+                    <td>{c["allergy_notes"] or ""}</td>
+                    <td>{policies}</td>
+                    <td>{attention}</td>
+                    <td>{c["last_contact"]}</td>
+                </tr>
+            """
+        html += """
+            </table>
+        """
+
+        html += """
+            <h2>⚠️ Clientes que requieren atención</h2>
+
+            <table>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Teléfono</th>
+                    <th>Último contacto</th>
+                    <th>Estado</th>
+                    <th>Conversación</th>
+                    <th>Acción</th>
+                </tr>
+        """
+
+        if not human_queue:
+            html += """
+                <tr>
+                    <td colspan="5">No hay clientes esperando atención humana.</td>
+                </tr>
+            """
+        else:
+            for h in human_queue:
+                html += f"""
+                    <tr>
+                        <td>{h["customer_name"] or ""}</td>
+                        <td>{h["phone_number"]}</td>
+                        <td>{h["last_contact"]}</td>
+            <td>⚠️ Requiere atención</td>
+
+            <td>
+                <a href="/whatsapp/dashboard/customer/{h['id']}">
+                    Ver conversación
+                </a>
+            </td>
+
+            <td>
+                <form method="POST"
+                      action="/whatsapp/dashboard/customers/{h['id']}/resolved">
+                                <button type="submit">Marcar atendido</button>
+                            </form>
+                        </td>
+                    </tr>
+                """
+
+        html += f"""
+            </table>
+
+            <h2>📅 Agenda de hoy</h2>
+            <p><b>Fecha local:</b> {local_today}</p>
+            <table>
+                <tr>
+                    <th>Hora</th>
+                    <th>Cliente</th>
+                    <th>Teléfono</th>
+                    <th>Servicio</th>
+                    <th>Estado</th>
+                    <th>Anticipo</th>
+                    <th>Pagado</th>
+                    <th>Acciones</th>
+                </tr>
+        """
+
+        if not today_appointments:
+            html += """
+                <tr>
+                    <td colspan="8">No hay citas agendadas para hoy.</td>
+                </tr>
+            """
+        else:
+            for a in today_appointments:
+                deposit_paid = "Sí" if a["deposit_paid"] else "No"
+                deposit_required = f'${a["deposit_required"]}' if a["deposit_required"] is not None else ""
+
+                html += f"""
+                    <tr>
+                        <td>{str(a["appointment_time"])[:5]}</td>
+                        <td>{a["customer_name"] or ""}</td>
+                        <td>{a["customer_phone"]}</td>
+                        <td>{a["service_name"]}</td>
+                        <td><span class="badge">{a["status"]}</span></td>
+                        <td>{deposit_required}</td>
+                        <td>{deposit_paid}</td>
+                        <td>
+                            {appointment_actions(a)}
+                        </td>
+                    </tr>
+                """
+
+        html += """
+            </table>
+        """
+
+        html += """
+            </table>
+
+            <h2>📅 Citas próximas</h2>
+            <table>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Cliente</th>
+                    <th>Teléfono</th>
+                    <th>Servicio</th>
+                    <th>Estado</th>
+                    <th>Anticipo</th>
+                    <th>Pagado</th>
+                    <th>Acciones</th>
+                </tr>
+        """
+
+        for a in appointments:
+            deposit_paid = "Sí" if a["deposit_paid"] else "No"
+            deposit_required = f'${a["deposit_required"]}' if a["deposit_required"] is not None else ""
+
+            html += f"""
+                <tr>
+                    <td>{a["appointment_date"]}</td>
+                    <td>{str(a["appointment_time"])[:5]}</td>
+                    <td>{a["customer_name"] or ""}</td>
+                    <td>{a["customer_phone"]}</td>
+                    <td>{a["service_name"]}</td>
+                    <td><span class="badge">{a["status"]}</span></td>
+                    <td>{deposit_required}</td>
+                    <td>{deposit_paid}</td>
+                    <td>
+                        {appointment_actions(a)}
+                    </td>
+                </tr>
+            """
+
+        html += """
+            </table>
+
+            <h2>Mensajes recientes</h2>
+            <table>
+                <tr>
+                    <th>Teléfono</th>
+                    <th>Mensaje</th>
+                    <th>Intención</th>
+                    <th>Fecha</th>
+                </tr>
+        """
+
+        for m in messages:
+            html += f"""
+                <tr>
+                    <td>{m["phone_number"]}</td>
+                    <td>{m["incoming_message"]}</td>
+                    <td><span class="badge">{m["detected_intent"]}</span></td>
+                    <td>{m["created_at"]}</td>
+                </tr>
+            """
+
+        html += """
+            </table>
+        </body>
+        </html>
+        """
+
+        return html
+
+    finally:
+        connection.close()
+
+@app.route("/dashboard/appointments/<int:appointment_id>/<action>", methods=["POST"])
+@app.route("/whatsapp/dashboard/appointments/<int:appointment_id>/<action>", methods=["POST"])
+def update_appointment_status(appointment_id, action):
+    valid_actions = {
+        "confirm": "confirmed",
+        "cancel": "cancelled",
+        "complete": "completed"
+    }
+
+    if action not in valid_actions:
+        return "Acción inválida", 400
+
+    new_status = valid_actions[action]
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE appointments
+        SET status = %s
+        WHERE id = %s AND business_id = 1
+    """, (new_status, appointment_id))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return redirect("/whatsapp/dashboard")
+
+@app.route("/whatsapp/dashboard/inbox")
+def dashboard_inbox():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            c.id,
+            c.customer_name,
+            c.phone_number,
+            c.human_required,
+            (
+                SELECT incoming_message
+                FROM whatsapp_messages wm
+                WHERE wm.phone_number = c.phone_number
+                ORDER BY wm.created_at DESC
+                LIMIT 1
+            ) AS last_message,
+            (
+                SELECT created_at
+                FROM whatsapp_messages wm
+                WHERE wm.phone_number = c.phone_number
+                ORDER BY wm.created_at DESC
+                LIMIT 1
+            ) AS last_message_at
+        FROM customers c
+        WHERE c.human_required = 1
+        ORDER BY last_message_at DESC
+    """)
+
+    customers = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    html = """
+    <html>
+    <head>
+        <title>VeldrikLabs - Inbox Humano</title>
+        <style>
+            body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+            .card { background: white; padding: 15px; margin-bottom: 12px; border-radius: 8px; }
+            .btn { background: #0d6efd; color: white; padding: 8px 12px; text-decoration: none; border-radius: 5px; }
+            .resolved { background: #198754; }
+        </style>
+    </head>
+    <body>
+        <h1>Inbox de Atención Humana</h1>
+        <p>Clientes que requieren respuesta manual.</p>
+        <a href="/whatsapp/dashboard">← Volver al Dashboard</a>
+        <hr>
+    """
+
+    if not customers:
+        html += "<p>No hay clientes pendientes de atención humana.</p>"
+
+    for c in customers:
+        name = c["customer_name"] or "Cliente sin nombre"
+        phone = c["phone_number"]
+        last_message = c["last_message"] or "Sin mensajes recientes"
+        last_message_at = c["last_message_at"] or ""
+
+        html += f"""
+        <div class="card">
+            <h3>{name}</h3>
+            <p><strong>Teléfono:</strong> {phone}</p>
+            <p><strong>Último mensaje:</strong> {last_message}</p>
+            <p><strong>Fecha:</strong> {last_message_at}</p>
+            <a class="btn" href="/whatsapp/dashboard/inbox/{phone}">Ver conversación</a>
+        </div>
+        """
+
+    html += """
+    </body>
+    </html>
+    """
+
+    return html
+
+@app.route("/whatsapp/dashboard/inbox/<phone>")
+def dashboard_conversation(phone):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT customer_name, phone_number, human_required
+        FROM customers
+        WHERE phone_number = %s
+        LIMIT 1
+    """, (phone,))
+    customer = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT incoming_message, bot_reply, detected_intent, created_at
+        FROM whatsapp_messages
+        WHERE phone_number = %s
+        ORDER BY created_at ASC
+    """, (phone,))
+    messages = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    customer_name = customer["customer_name"] if customer and customer["customer_name"] else "Cliente sin nombre"
+
+    html = f"""
+    <html>
+    <head>
+        <title>Conversación - {customer_name}</title>
+        <style>
+            body {{ font-family: Arial; background: #f4f4f4; padding: 20px; }}
+            .container {{ max-width: 900px; margin: auto; }}
+            .header {{ background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }}
+            .chat {{ background: white; padding: 15px; border-radius: 8px; }}
+            .msg-user {{ background: #dcf8c6; padding: 10px; border-radius: 8px; margin: 10px 0; max-width: 70%; }}
+            .msg-bot {{ background: #e9ecef; padding: 10px; border-radius: 8px; margin: 10px 0 10px auto; max-width: 70%; }}
+            .time {{ font-size: 12px; color: #666; margin-top: 5px; }}
+            .btn {{ background: #0d6efd; color: white; padding: 8px 12px; text-decoration: none; border-radius: 5px; }}
+        </style>
+    </head>
+    <body>
+    <div class="container">
+        <div class="header">
+            <h1>Conversación con {customer_name}</h1>
+            <p><strong>Teléfono:</strong> {phone}</p>
+            <a href="/whatsapp/dashboard/inbox">← Volver al Inbox</a>
+        </div>
+
+        <div class="chat">
+    """
+
+    if not messages:
+        html += "<p>No hay mensajes para este cliente.</p>"
+
+    for m in messages:
+        incoming = m["incoming_message"]
+        bot_reply = m["bot_reply"]
+        intent = m["detected_intent"]
+        created_at = m["created_at"]
+
+        if incoming:
+            html += f"""
+            <div class="msg-user">
+                <strong>Cliente:</strong><br>
+                {incoming}
+                <div class="time">{created_at}</div>
+            </div>
+            """
+
+        if bot_reply:
+            html += f"""
+            <div class="msg-bot">
+                <strong>Bot:</strong><br>
+                {bot_reply}
+                <div class="time">Intent: {intent} | {created_at}</div>
+            </div>
+            """
+
+    html += """
+        </div>
+    </div>
+    </body>
+    </html>
+    """
+
+    return html
+
+@app.route(
+    "/whatsapp/dashboard/customers/<int:customer_id>/resolved",
+    methods=["POST"]
+)
+def resolve_customer(customer_id):
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE customers
+        SET human_required = 0
+        WHERE id = %s
+    """, (customer_id,))
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return redirect("/whatsapp/dashboard")
+
+@app.route("/whatsapp/dashboard/customer/<int:customer_id>", methods=["GET", "POST"])
+def customer_conversation(customer_id):
+
+    conn = get_db_connection()
+
+    try:
+        cursor = conn.cursor()
+
+        if request.method == "POST":
+            manual_reply = request.form.get("reply", "").strip()
+
+            cursor.execute("""
+                SELECT phone_number
+                FROM customers
+                WHERE id = %s
+                LIMIT 1
+            """, (customer_id,))
+
+            customer_phone_row = cursor.fetchone()
+
+            if manual_reply and customer_phone_row:
+                phone_number = customer_phone_row["phone_number"]
+
+                cursor.execute("""
+                    INSERT INTO whatsapp_messages
+                        (business_id, phone_number, incoming_message, bot_reply, detected_intent)
+                    VALUES
+                        (1, %s, NULL, %s, 'human_reply')
+                """, (phone_number, manual_reply))
+
+                conn.commit()
+
+            return redirect(f"/whatsapp/dashboard/customer/{customer_id}#bottom")
+
+        cursor.execute("""
+            SELECT
+                id,
+                customer_name,
+                phone_number
+            FROM customers
+            WHERE id = %s
+        """, (customer_id,))
+
+        customer = cursor.fetchone()
+
+        cursor.execute("""
+            SELECT
+                incoming_message, bot_reply,
+                detected_intent,
+                created_at
+            FROM whatsapp_messages
+            WHERE business_id = 1
+              AND phone_number = %s
+            ORDER BY created_at ASC
+        """, (customer["phone_number"],))
+
+        messages = cursor.fetchall()
+
+        html = f"""
+        <html>
+        <head>
+            <title>Conversación</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{
+                    font-family: Arial;
+                    margin: 30px;
+                    background: #f5f7fa;
+                }}
+
+                .chat-container {{
+                    height: 800px;
+                    overflow-y: auto;
+                    background: #e5ddd5;
+                    padding: 15px;
+                    border-radius: 10px;
+                }}
+
+                .message {{
+                    padding: 12px;
+                    margin-bottom: 10px;
+                    border-radius: 12px;
+                    max-width: 70%;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+                }}
+
+                .customer {{
+                    background: #dcf8c6;
+                    margin-right: auto;
+                }}
+
+                .bot {{
+                    background: #ffffff;
+                    margin-left: auto;
+                }}
+                body {{
+                    font-size: 16px;
+                }}
+
+                textarea {{
+                    width: 100%;
+                    max-width: 700px;
+                    font-size: 16px;
+                }}
+
+                button {{
+                    font-size: 16px;
+                    padding: 8px 14px;
+                }}
+
+                @media (max-width: 768px) {{
+                    body {{
+                        margin: 10px;
+                        font-size: 18px;
+                    }}
+
+                    h1 {{
+                        font-size: 24px;
+                        margin-bottom: 10px;
+                    }}
+
+                    .chat-container {{
+                        height: 70vh;
+                        padding: 10px;
+                    }}
+
+                    .message {{
+                        max-width: 95%;
+                        font-size: 17px;
+                    }}
+
+                    textarea {{
+                        width: 100%;
+                        height: 90px;
+                        font-size: 18px;
+                    }}
+
+                    button {{
+                        width: 100%;
+                        font-size: 18px;
+                        padding: 12px;
+                    }}
+                }}
+            </style>
+        </head>
+
+        <body>
+
+        <h1>
+            Conversación con
+            {customer["customer_name"] or customer["phone_number"]}
+        </h1>
+
+        <a href="/whatsapp/dashboard">
+            ← Volver al Dashboard
+        </a>
+
+        <hr>
+        """
+
+        html += """
+        <div class="chat-container" id="chat-container">
+        """
+
+        for m in messages:
+            created_at = m["created_at"]
+            incoming = m["incoming_message"]
+            bot_reply = m["bot_reply"]
+            intent = m["detected_intent"]
+
+
+            if incoming:
+                html += f"""
+                <div class="message customer">
+                    <strong>{created_at}</strong><br>
+                    <strong>Cliente:</strong> {incoming}<br>
+                </div>
+                """
+
+            if bot_reply:
+
+                label = "Bot"
+
+                if intent == "human_reply":
+                    label = "Asesora"
+
+                html += f"""
+                <div class="message bot">
+                    <strong>{created_at}</strong><br>
+                    <strong>{label}:</strong> {bot_reply}
+                </div>
+                """
+
+        html += """
+        </div>
+
+        <script>
+        window.onload = function() {
+            const chat = document.getElementById("chat-container");
+            if (chat) {
+                chat.scrollTop = chat.scrollHeight;
+            }
+        };
+        </script>
+        """
+
+        html += """
+        <div id="bottom"></div>
+
+        <hr>
+        <h3>Respuesta manual</h3>
+
+        <form method="POST">
+            <textarea
+                name="reply"
+                rows="4"
+                cols="80"
+                placeholder="Escribe una respuesta manual..."
+            ></textarea>
+            <br><br>
+            <button type="submit">Enviar respuesta</button>
+        </form>
+        """
+
+        html += """
+        </body>
+        </html>
+        """
+
+        return html
+
+    finally:
+        conn.close()
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5100)
