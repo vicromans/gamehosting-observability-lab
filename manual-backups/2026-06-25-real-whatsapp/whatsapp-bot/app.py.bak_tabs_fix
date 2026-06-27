@@ -4,7 +4,6 @@ from zoneinfo import ZoneInfo
 import pymysql
 import os
 import requests
-import re
 
 app = Flask(__name__)
 
@@ -69,33 +68,6 @@ def verify_webhook():
 def get_db_connection():
     return pymysql.connect(**DB_CONFIG)
 
-def get_service_duration_minutes(service_name):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT duration_minutes
-        FROM services
-        WHERE business_id = %s
-          AND LOWER(service_name) LIKE %s
-          AND active = 1
-        LIMIT 1
-    """, (1, f"%{service_name.lower()}%"))
-
-    row = cursor.fetchone()
-
-    cursor.close()
-    conn.close()
-
-    if not row:
-        return 120
-
-    if isinstance(row, dict):
-        return row.get("duration_minutes") or 120
-
-    return row[0] or 120
-
-
 def save_appointment(phone_number, customer_name, service_name, appointment_date, appointment_time):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -147,61 +119,7 @@ def parse_time_from_message(message):
 
 def parse_date_from_message(message):
     text = message.lower().strip()
-    today = datetime.now(ZoneInfo("America/Mexico_City")).date()
-
-    months = {
-        "enero": 1,
-        "febrero": 2,
-        "marzo": 3,
-        "abril": 4,
-        "mayo": 5,
-        "junio": 6,
-        "julio": 7,
-        "agosto": 8,
-        "septiembre": 9,
-        "setiembre": 9,
-        "octubre": 10,
-        "noviembre": 11,
-        "diciembre": 12,
-    }
-
-    # Fechas tipo 12/07, 12-07, 12/07/2026, 12-07-2026
-    numeric_match = re.search(r"\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b", text)
-    if numeric_match:
-        day = int(numeric_match.group(1))
-        month = int(numeric_match.group(2))
-        year_text = numeric_match.group(3)
-
-        if year_text:
-            year = int(year_text)
-            if year < 100:
-                year += 2000
-        else:
-            year = today.year
-
-        try:
-            candidate = datetime(year, month, day).date()
-            if not year_text and candidate < today:
-                candidate = datetime(year + 1, month, day).date()
-            return candidate
-        except ValueError:
-            pass
-
-    # Fechas tipo 15 de julio, 3 agosto, día 20 de diciembre
-    month_names = "|".join(months.keys())
-    text_match = re.search(rf"\b(?:dia|día)?\s*(\d{{1,2}})\s*(?:de\s*)?({month_names})(?:\s*(?:de\s*)?(\d{{4}}))?\b", text)
-    if text_match:
-        day = int(text_match.group(1))
-        month = months[text_match.group(2)]
-        year = int(text_match.group(3)) if text_match.group(3) else today.year
-
-        try:
-            candidate = datetime(year, month, day).date()
-            if not text_match.group(3) and candidate < today:
-                candidate = datetime(year + 1, month, day).date()
-            return candidate
-        except ValueError:
-            pass
+    today = datetime.now().date()
 
     if "hoy" in text:
         return today
@@ -233,110 +151,46 @@ def parse_date_from_message(message):
 
     return None
 
-
-def time_to_minutes(time_value):
-    time_text = str(time_value)
-    parts = time_text.split(":")
-    return int(parts[0]) * 60 + int(parts[1])
-
-
-def ranges_overlap(start_a, end_a, start_b, end_b):
-    return start_a < end_b and end_a > start_b
-
-
-def is_time_slot_available(appointment_date, appointment_time, service_name=None):
-    if is_day_blocked(appointment_date):
-        return False
-
-    if is_slot_blocked(appointment_date, appointment_time):
-        return False
-
-    requested_duration = get_service_duration_minutes(service_name or "")
-    requested_start = time_to_minutes(appointment_time)
-    requested_end = requested_start + requested_duration
-
+def is_time_slot_available(appointment_date, appointment_time):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT
-            service_name,
-            appointment_time
+        SELECT COUNT(*) AS total
         FROM appointments
         WHERE business_id = %s
           AND appointment_date = %s
-          AND status != 'canceled'
-    """, (1, appointment_date))
+          AND appointment_time = %s
+          AND status != 'cancelled'
+    """, (1, appointment_date, appointment_time))
 
-    rows = cursor.fetchall()
+    row = cursor.fetchone()
 
     cursor.close()
     conn.close()
 
-    for row in rows:
-        if isinstance(row, dict):
-            existing_service = row["service_name"]
-            existing_time = row["appointment_time"]
-        else:
-            existing_service = row[0]
-            existing_time = row[1]
+    if isinstance(row, dict):
+        return row["total"] == 0
 
-        existing_duration = get_service_duration_minutes(existing_service or "")
-        existing_start = time_to_minutes(existing_time)
-        existing_end = existing_start + existing_duration
-
-        if ranges_overlap(requested_start, requested_end, existing_start, existing_end):
-            return False
-
-    return True
-
-
-def format_time_for_user(time_value):
-    time_text = str(time_value)
-
-    if time_text == "10:00:00":
-        return "10:00"
-    if time_text == "12:00:00":
-        return "12:00"
-    if time_text == "15:00:00":
-        return "15:00"
-
-    return time_text[:5]
-
+    return row[0] == 0
 
 AVAILABLE_TIMES = ["10:00:00", "12:00:00", "15:00:00"]
 
-
-def is_slot_blocked(appointment_date, appointment_time):
-    # TODO: conectar con tabla de horarios bloqueados manualmente.
-    # Por ahora ningún horario está bloqueado manualmente.
-    return False
-
-
-def is_day_blocked(appointment_date):
-    # TODO: conectar con tabla de días bloqueados/no laborables.
-    # Por ahora ningún día está bloqueado automáticamente.
-    return False
+def format_time_for_user(time_value):
+    if time_value == "10:00:00":
+        return "10:00"
+    if time_value == "12:00:00":
+        return "12:00"
+    if time_value == "15:00:00":
+        return "15:00"
+    return time_value[:5]
 
 
-def get_available_times(appointment_date, service_name=None):
+def get_available_times(appointment_date):
     available = []
 
-    if is_day_blocked(appointment_date):
-        return available
-
-    today = datetime.now(ZoneInfo("America/Mexico_City")).date()
-    current_minutes = datetime.now().hour * 60 + datetime.now().minute
-    minimum_notice_minutes = 60
-
     for time_slot in AVAILABLE_TIMES:
-        slot_minutes = time_to_minutes(time_slot)
-
-        if str(appointment_date) == str(today):
-            if slot_minutes <= current_minutes + minimum_notice_minutes:
-                continue
-
-        if is_time_slot_available(appointment_date, time_slot, service_name):
+        if is_time_slot_available(appointment_date, time_slot):
             available.append(time_slot)
 
     return available
@@ -356,289 +210,18 @@ def format_available_times_message(available_times):
 
     return f"{', '.join(readable[:-1])} o {readable[-1]}"
 
-
-
-def clean_customer_name(message):
-    import re
-
-    name = message.strip()
-
-    name = re.sub(r"(?i)^(perfecto|ok|okay|va|sí|si|claro|listo)[,\s]+", "", name).strip()
-    name = re.sub(r"(?i)^(ah\s*)?(a\s*)?mi nombre\s*(es)?\s*", "", name).strip()
-    name = re.sub(r"(?i)^a\s+nombre\s+de\s+", "", name).strip()
-    name = re.sub(r"(?i)^nombre\s+de\s+", "", name).strip()
-    name = re.sub(r"(?i)^me llamo\s*", "", name).strip()
-    name = re.sub(r"(?i)^soy\s*", "", name).strip()
-
-    if "," in name:
-        parts = [p.strip() for p in name.split(",") if p.strip()]
-        if parts:
-            name = parts[-1]
-
-    name = re.sub(r"(?i)\bpor favor\b", "", name).strip()
-    name = re.sub(r"(?i)\bgracias\b", "", name).strip()
-
-    return name.strip(" ,.-")
-
-
-def format_date_for_user(date_text):
-    if not date_text:
-        return "la fecha indicada"
-
-    text = str(date_text)
-
-    try:
-        date_obj = datetime.strptime(text[:10], "%Y-%m-%d").date()
-
-        weekdays = [
-            "lunes",
-            "martes",
-            "miércoles",
-            "jueves",
-            "viernes",
-            "sábado",
-            "domingo",
-        ]
-
-        return f"{weekdays[date_obj.weekday()]} {date_obj.day}/{date_obj.month}"
-    except Exception:
-        return text
-
-
-def extract_service_from_message(message):
-    text = message.lower().strip()
-
-    if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
-        return "pestañas"
-
-    if any(word in text for word in ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente"]):
-        return "uñas"
-
-    if any(word in text for word in ["alisado", "keratina", "cabello", "pelo"]):
-        return "alisado"
-
-    return None
-
-
-def is_affirmative_message(message):
-    text = message.lower().strip()
-    return any(phrase in text for phrase in [
-        "si",
-        "sí",
-        "esta bien",
-        "está bien",
-        "me parece bien",
-        "ok",
-        "okay",
-        "va",
-        "dale",
-        "confirmo",
-        "confirmar",
-        "de acuerdo",
-        "perfecto",
-        "correcto"
-    ])
-
-
-def extract_booking_information(message):
-    return {
-        "service": extract_service_from_message(message),
-        "date": parse_date_from_message(message),
-        "time": parse_time_from_message(message)
-    }
-
-
-def is_booking_intent(message):
-    text = message.lower().strip()
-    return any(word in text for word in [
-        "cita",
-        "agendar",
-        "agenda",
-        "horario",
-        "disponible",
-        "lugar",
-        "espacio",
-        "reservar",
-        "apartar"
-    ])
-
-
-def build_available_times_reply(available_times, phone_number=None, service=None, appointment_date_text=None):
-    available_text = format_available_times_message(available_times)
-
-    if not available_text:
-        return None
-
-    if len(available_times) == 1:
-        if phone_number and service and appointment_date_text:
-            conversation_state[phone_number] = {
-                "step": "waiting_time_confirmation",
-                "service": service,
-                "date_text": format_date_for_user(appointment_date_text),
-                "appointment_date": appointment_date_text,
-                "suggested_time": available_times[0]
-            }
-        return f"Solo tengo disponible {available_text}. ¿Te parece bien?"
-
-    return f"Tengo disponible {available_text}. ¿Qué horario prefieres?"
-
-
-def try_handle_booking_message(message, phone_number, state):
-    booking = extract_booking_information(message)
-
-    service = booking.get("service") or state.get("service")
-    appointment_date = booking.get("date") or state.get("appointment_date")
-    selected_time = booking.get("time")
-
-    if not selected_time and state.get("step") == "waiting_time_confirmation" and is_affirmative_message(message):
-        selected_time = state.get("suggested_time")
-
-    has_booking_data = booking.get("service") or booking.get("date") or booking.get("time")
-    active_booking_flow = state.get("step") in ["waiting_service", "waiting_date", "waiting_time", "waiting_time_confirmation"]
-    booking_intent = is_booking_intent(message)
-
-    if not has_booking_data and not active_booking_flow and not booking_intent:
-        return None
-
-    if booking.get("service") and not booking.get("date") and not booking.get("time") and not active_booking_flow and not booking_intent:
-        return None
-
-    if not service:
-        conversation_state[phone_number] = {"step": "waiting_service"}
-        return "Claro 😊 Te ayudo a agendar. ¿Qué servicio necesitas: pestañas, uñas o alisado?"
-
-    if not appointment_date:
-        conversation_state[phone_number] = {
-            "step": "waiting_date",
-            "service": service
-        }
-        return f"Perfecto 😊 ¿Qué día te gustaría agendar tu cita de {service}?"
-
-    appointment_date_text = str(appointment_date)
-
-    if not selected_time:
-        available_times = get_available_times(appointment_date_text, service)
-        reply = build_available_times_reply(available_times, phone_number, service, appointment_date_text)
-
-        if not reply:
-            conversation_state[phone_number] = {
-                "step": "waiting_date",
-                "service": service,
-                "retry_reason": "no_availability"
-            }
-            return "Lo siento 😔 Ya no tengo horarios disponibles para ese día. ¿Qué otro día te gustaría intentar?"
-
-        if len(available_times) == 1:
-            return f"Perfecto 😊 {reply}"
-
-        conversation_state[phone_number] = {
-            "step": "waiting_time",
-            "service": service,
-            "date_text": format_date_for_user(appointment_date_text),
-            "appointment_date": appointment_date_text
-        }
-
-        return f"Perfecto 😊 {reply}"
-
-    if not is_time_slot_available(appointment_date_text, selected_time, service):
-        available_times = get_available_times(appointment_date_text, service)
-        available_text = format_available_times_message(available_times)
-
-        conversation_state[phone_number] = {
-            "step": "waiting_time",
-            "service": service,
-            "date_text": format_date_for_user(appointment_date_text),
-            "appointment_date": appointment_date_text
-        }
-
-        if not available_text:
-            return "Lo siento 😔 Ese día ya no tiene horarios disponibles. ¿Quieres intentar con otro día?"
-
-        if len(available_times) == 1:
-            return f"Ese horario ya no está disponible 😔 Solo me queda {available_text}. ¿Te funciona ese horario?"
-
-        return f"Ese horario ya no está disponible 😔 Tengo disponible {available_text}. ¿Cuál prefieres?"
-
-    conversation_state[phone_number] = {
-        "step": "waiting_name",
-        "service": service,
-        "date_text": format_date_for_user(appointment_date_text),
-        "appointment_date": appointment_date_text,
-        "appointment_time": selected_time
-    }
-
-    return "Perfecto 😊 Ese horario está disponible. ¿A nombre de quién agendo la cita?"
-
-
 def build_reply(message, phone_number):
     text = message.lower().strip()
     state = conversation_state.get(phone_number, {})
 
-    bot_keywords = [
-        "sigue tu",
-        "sigue tú",
-        "atiende tu",
-        "atiende tú",
-        "quiero seguir con el bot",
-        "que me atienda el bot",
-        "bot",
-        "automatico",
-        "automático",
-        "quiero agendar",
-        "agendar cita",
-        "cita"
-    ]
-
-    if state.get("step") == "human_required" and any(keyword in text for keyword in bot_keywords):
-        conversation_state[phone_number] = {}
-        clear_human_required(phone_number)
-        return "Claro 😊 Seguimos con el bot. Puedo ayudarte con citas, precios, pestañas, uñas o alisado. ¿Qué necesitas?"
-
-    human_keywords = [
-        "humano",
-        "persona",
-        "asesora",
-        "asesor",
-        "alguien",
-        "hablar con alguien",
-        "necesito hablar",
-        "quiero hablar",
-        "no entiendo",
-        "no entendi",
-        "ayuda",
-        "soporte"
-    ]
-
-    if any(keyword in text for keyword in human_keywords):
-        mark_human_required(phone_number)
-        return "Claro 😊 Una asesora de Aura Beauty revisará tu mensaje. Mientras tanto, también puedo ayudarte con citas, precios, pestañas, uñas o alisado."
-
-    cancel_keywords = [
-        "no lo quiero",
-        "ya no quiero",
-        "mejor no",
-        "cancelar",
-        "cancela",
-        "olvidalo",
-        "olvídalo",
-        "dejalo",
-        "déjalo"
-    ]
-
-    if any(keyword in text for keyword in cancel_keywords):
-        conversation_state[phone_number] = {}
-        return "Claro 😊 Cancelé esta solicitud. Si después quieres agendar otra cita, aquí estoy."
+    if state.get("step") == "human_required":
+        return "Ya canalicé tu conversación con una asesora de Aura Beauty 😊 En breve te responderán personalmente."
 
     if any(word in text for word in ["gracias", "muchas gracias", "thank you", "thanks", "mil gracias"]):
-        conversation_state[phone_number] = {}
         return "¡Con gusto! 😊 Gracias por contactar a Aura Beauty. Si necesitas algo más, aquí estoy."
 
     if any(word in text for word in ["bye", "adios", "adiós", "hasta luego", "nos vemos", "chao", "ciao"]):
         return "¡Hasta luego! 😊 Gracias por contactar a Aura Beauty. Te esperamos pronto."
-
-    booking_reply = try_handle_booking_message(message, phone_number, state)
-    if booking_reply:
-        return booking_reply
 
     if state.get("step") == "waiting_service":
         if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
@@ -648,7 +231,7 @@ def build_reply(message, phone_number):
             }
             return "Perfecto ✨ ¿Qué día te gustaría agendar tu cita de pestañas?"
 
-        if any(word in text for word in ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente"]):
+        if any(word in text for word in ["uña", "uñas", "nail", "nails"]):
             conversation_state[phone_number] = {
                 "step": "waiting_date",
                 "service": "uñas"
@@ -666,87 +249,51 @@ def build_reply(message, phone_number):
 
     if state.get("step") == "waiting_date":
         appointment_date = parse_date_from_message(message)
-        selected_time = parse_time_from_message(message)
-        service = state.get("service")
 
         if not appointment_date:
             return "¿Qué día te gustaría? Puedes decir: hoy, mañana, pasado mañana, lunes, martes, miércoles, jueves, viernes, sábado o domingo 😊"
 
-        available_times = get_available_times(str(appointment_date), service)
+        conversation_state[phone_number] = {
+            "step": "waiting_time",
+            "service": state.get("service"),
+            "date_text": message,
+            "appointment_date": str(appointment_date)
+        }
+
+        available_times = get_available_times(str(appointment_date))
         available_text = format_available_times_message(available_times)
 
         if not available_text:
             conversation_state[phone_number] = {
                 "step": "waiting_date",
-                "service": service,
+                "service": state.get("service"),
                 "retry_reason": "no_availability"
             }
             return "Lo siento 😔 Ya no tengo horarios disponibles para ese día. ¿Qué otro día te gustaría intentar?"
 
-        if selected_time:
-            if not is_time_slot_available(str(appointment_date), selected_time, service):
-                conversation_state[phone_number] = {
-                    "step": "waiting_time",
-                    "service": service,
-                    "date_text": format_date_for_user(appointment_date_text),
-                    "appointment_date": str(appointment_date)
-                }
-                return f"Ese horario ya está ocupado 😔 Tengo disponible {available_text}. ¿Cuál prefieres?"
-
-            conversation_state[phone_number] = {
-                "step": "waiting_name",
-                "service": service,
-                "date_text": format_date_for_user(appointment_date_text),
-                "appointment_date": str(appointment_date),
-                "appointment_time": selected_time
-            }
-
-            return "Perfecto 😊 Ese horario está disponible. ¿A nombre de quién agendo la cita?"
-
-        conversation_state[phone_number] = {
-            "step": "waiting_time",
-            "service": service,
-            "date_text": format_date_for_user(appointment_date_text),
-            "appointment_date": str(appointment_date)
-        }
-
-        if len(available_times) == 1:
-            return f"Perfecto 😊 Solo tengo disponible {available_text}. ¿Te parece bien?"
-        else:
-            return f"Perfecto 😊 Tengo disponible {available_text}. ¿Qué horario prefieres?"
+        return f"Perfecto 😊 Tengo disponible {available_text}. ¿Qué horario prefieres?"
 
     if state.get("step") == "waiting_time":
         selected_time = parse_time_from_message(message)
 
         if not selected_time:
-            appointment_date = state.get("appointment_date")
-            available_times = get_available_times(appointment_date, state.get("service"))
-            available_text = format_available_times_message(available_times)
-
-            if available_text:
-                return f"Por ahora tengo disponible {available_text}. Puedes decir: a las 10, medio día o 3 pm 😊"
-
-            conversation_state[phone_number] = {}
-            return "Lo siento 😔 Ese día ya no tiene horarios disponibles. ¿Quieres intentar con otro día?"
+            return "Por ahora tenemos estos horarios: 10:00, 12:00 o 15:00. También puedes decir: a las 10, medio día o 3 pm 😊"
 
         service = state.get("service", "servicio")
         date_text = state.get("date_text", "pendiente")
 
         appointment_date = state.get("appointment_date")
 
-        if not is_time_slot_available(appointment_date, selected_time, service):
+        if not is_time_slot_available(appointment_date, selected_time):
 
-            available_times = get_available_times(appointment_date, state.get("service"))
+            available_times = get_available_times(appointment_date)
             available_text = format_available_times_message(available_times)
 
             if not available_text:
                 conversation_state[phone_number] = {}
                 return "Lo siento 😔 Ese día ya no tiene horarios disponibles. ¿Quieres intentar con otro día?"
 
-            if len(available_times) == 1:
-                return f"Ese horario ya está ocupado 😔 Solo me queda disponible {available_text}. ¿Te funciona ese horario?"
-            else:
-                return f"Ese horario ya está ocupado 😔 Tengo disponible {available_text}. ¿Cuál prefieres?"
+            return f"Ese horario ya está ocupado 😔 Tengo disponible {available_text}. ¿Cuál prefieres?"
 
         conversation_state[phone_number] = {
             "step": "waiting_name",
@@ -759,7 +306,7 @@ def build_reply(message, phone_number):
         return "Perfecto 😊 ¿A nombre de quién agendo la cita?"
 
     if state.get("step") == "waiting_name":
-        customer_name = clean_customer_name(message)
+        customer_name = message.strip()
 
         if len(customer_name) < 2:
             return "¿Me puedes decir el nombre para agendar la cita, por favor? 😊"
@@ -810,7 +357,7 @@ def build_reply(message, phone_number):
     if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
         return "Para pestañas tenemos promoción en $350 ✨ Para agendar se requiere anticipo de $150. ¿Quieres agendar una cita?"
 
-    if any(word in text for word in ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente"]):
+    if any(word in text for word in ["uña", "uñas", "nail", "nails"]):
         return "Para uñas tenemos opciones desde $125 en gel semipermanente. Acrílico desde $250 y esculturales desde $300 según largo. Para agendar se requiere anticipo de $150 💅 ¿Qué servicio buscas?"
 
     if any(word in text for word in ["alisado", "cabello", "pelo", "keratina"]):
@@ -874,28 +421,7 @@ def receive_message():
         message_type = message.get("type")
         whatsapp_message_id = message.get("id")
 
-        customer_waiting_human = False
-
-        check_conn = pymysql.connect(**DB_CONFIG)
-        try:
-            with check_conn.cursor() as check_cursor:
-                check_cursor.execute("""
-                    SELECT human_required
-                    FROM customers
-                    WHERE phone_number = %s
-                    LIMIT 1
-                """, (phone_number,))
-                row = check_cursor.fetchone()
-
-                if row and row["human_required"]:
-                    customer_waiting_human = True
-        finally:
-            check_conn.close()
-
         reply = build_reply(incoming_message, phone_number)
-
-        if reply and "canalizar" in reply:
-            mark_human_required(phone_number)
 
         intent = "unknown"
         lower_msg = incoming_message.lower()
@@ -904,14 +430,12 @@ def receive_message():
             intent = "appointment"
         elif "pestana" in lower_msg or "pestaña" in lower_msg or "pestañas" in lower_msg:
             intent = "lashes"
-        elif "una" in lower_msg or "uña" in lower_msg or "uñas" in lower_msg or "gel" in lower_msg or "gelish" in lower_msg or "semipermanente" in lower_msg:
+        elif "una" in lower_msg or "uña" in lower_msg or "uñas" in lower_msg or "gelish" in lower_msg:
             intent = "nails"
         elif "alisado" in lower_msg or "cabello" in lower_msg:
             intent = "hair"
         elif "horario" in lower_msg:
             intent = "schedule"
-        elif "precio" in lower_msg or "costo" in lower_msg or "cuanto" in lower_msg or "cuánto" in lower_msg or "$" in lower_msg:
-            intent = "pricing"
         elif "hola" in lower_msg or "buenas" in lower_msg:
             intent = "greeting"
 
@@ -940,8 +464,7 @@ def receive_message():
 
         print(f"Saved WhatsApp message from {phone_number}: {incoming_message}", flush=True)
 
-        if reply:
-            send_whatsapp_message(phone_number, reply)
+        send_whatsapp_message(phone_number, reply)
 
         return jsonify({
             "status": "saved",
@@ -1028,7 +551,7 @@ def bot_reply(text):
     if "pestaña" in text:
         return "El servicio de pestañas tiene un precio regular de $500 MXN. Promoción actual: $350 MXN. Duración aproximada: 2 horas."
 
-    if "uña" in text or "uñas" in text or "gel" in text or "gelish" in text or "semipermanente" in text:
+    if "uña" in text or "gelish" in text:
         return "Para cotizar uñas, por favor envía una foto del diseño que te gustaría realizarte. El precio depende del diseño."
 
     if "alisado" in text or "cabello" in text:
@@ -1059,16 +582,13 @@ def test_bot():
         intent = "appointment"
     elif "pestana" in lower_msg or "pestaña" in lower_msg:
         intent = "lashes"
-    elif "una" in lower_msg or "uña" in lower_msg or "gel" in lower_msg or "gelish" in lower_msg or "semipermanente" in lower_msg:
+    elif "una" in lower_msg or "uña" in lower_msg or "gelish" in lower_msg:
         intent = "nails"
     elif "alisado" in lower_msg or "cabello" in lower_msg:
         intent = "hair"
     elif "horario" in lower_msg:
         intent = "schedule"
-    elif "precio" in lower_msg or "costo" in lower_msg or "cuanto" in lower_msg or "cuánto" in lower_msg or "$" in lower_msg:
-        intent = "pricing"
     elif "hola" in lower_msg or "buenas" in lower_msg:
-        intent = "greeting"
         intent = "greeting"
 
     ensure_customer(phone)
@@ -1235,10 +755,9 @@ def dashboard():
         html = f"""
         <html>
         <head>
-            <title>VeldrikLabs Dashboard</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>VeldrikLabs CRM</title>
             <style>
-                body {{ font-family: Arial, sans-serif; margin: 35px; background: #f5f7fa; color: #222; }}
+                body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f7fa; color: #222; }}
                 h1 {{ color: #222; }}
                 h2 {{ margin-top: 35px; }}
                 table {{ border-collapse: collapse; width: 100%; background: white; margin-top: 10px; }}
@@ -1249,7 +768,7 @@ def dashboard():
             </style>
         </head>
         <body>
-            <h1>VeldrikLabs Dashboard</h1>
+            <h1>VeldrikLabs CRM</h1>
 
             <div class="card">
                 <h2>{business["business_name"]}</h2>
@@ -1342,17 +861,17 @@ def dashboard():
                         <td>{h["customer_name"] or ""}</td>
                         <td>{h["phone_number"]}</td>
                         <td>{h["last_contact"]}</td>
-            <td>⚠️ Requiere atención</td>
+			<td>⚠️ Requiere atención</td>
 
-            <td>
-                <a href="/whatsapp/dashboard/customer/{h['id']}">
-                    Ver conversación
-                </a>
-            </td>
+			<td>
+			    <a href="/whatsapp/dashboard/customer/{h['id']}">
+			        Ver conversación
+			    </a>
+			</td>
 
-            <td>
-                <form method="POST"
-                      action="/whatsapp/dashboard/customers/{h['id']}/resolved">
+			<td>
+			    <form method="POST"
+			          action="/whatsapp/dashboard/customers/{h['id']}/resolved">
                                 <button type="submit">Marcar atendido</button>
                             </form>
                         </td>
@@ -1520,16 +1039,16 @@ def dashboard_inbox():
             c.phone_number,
             c.human_required,
             (
-                SELECT incoming_message
+                SELECT message_text
                 FROM whatsapp_messages wm
-                WHERE wm.phone_number = c.phone_number
+                WHERE wm.customer_phone = c.phone_number
                 ORDER BY wm.created_at DESC
                 LIMIT 1
             ) AS last_message,
             (
                 SELECT created_at
                 FROM whatsapp_messages wm
-                WHERE wm.phone_number = c.phone_number
+                WHERE wm.customer_phone = c.phone_number
                 ORDER BY wm.created_at DESC
                 LIMIT 1
             ) AS last_message_at
@@ -1565,10 +1084,10 @@ def dashboard_inbox():
         html += "<p>No hay clientes pendientes de atención humana.</p>"
 
     for c in customers:
-        name = c["customer_name"] or "Cliente sin nombre"
-        phone = c["phone_number"]
-        last_message = c["last_message"] or "Sin mensajes recientes"
-        last_message_at = c["last_message_at"] or ""
+	name = c[1] or "Cliente sin nombre"
+	phone = c[2]
+	last_message = c[4] or "Sin mensajes recientes"
+	last_message_at = c[5] or ""
 
         html += f"""
         <div class="card">
@@ -1581,94 +1100,6 @@ def dashboard_inbox():
         """
 
     html += """
-    </body>
-    </html>
-    """
-
-    return html
-
-@app.route("/whatsapp/dashboard/inbox/<phone>")
-def dashboard_conversation(phone):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT customer_name, phone_number, human_required
-        FROM customers
-        WHERE phone_number = %s
-        LIMIT 1
-    """, (phone,))
-    customer = cursor.fetchone()
-
-    cursor.execute("""
-        SELECT incoming_message, bot_reply, detected_intent, created_at
-        FROM whatsapp_messages
-        WHERE phone_number = %s
-        ORDER BY created_at ASC
-    """, (phone,))
-    messages = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    customer_name = customer["customer_name"] if customer and customer["customer_name"] else "Cliente sin nombre"
-
-    html = f"""
-    <html>
-    <head>
-        <title>Conversación - {customer_name}</title>
-        <style>
-            body {{ font-family: Arial; background: #f4f4f4; padding: 20px; }}
-            .container {{ max-width: 900px; margin: auto; }}
-            .header {{ background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }}
-            .chat {{ background: white; padding: 15px; border-radius: 8px; }}
-            .msg-user {{ background: #dcf8c6; padding: 10px; border-radius: 8px; margin: 10px 0; max-width: 70%; }}
-            .msg-bot {{ background: #e9ecef; padding: 10px; border-radius: 8px; margin: 10px 0 10px auto; max-width: 70%; }}
-            .time {{ font-size: 12px; color: #666; margin-top: 5px; }}
-            .btn {{ background: #0d6efd; color: white; padding: 8px 12px; text-decoration: none; border-radius: 5px; }}
-        </style>
-    </head>
-    <body>
-    <div class="container">
-        <div class="header">
-            <h1>Conversación con {customer_name}</h1>
-            <p><strong>Teléfono:</strong> {phone}</p>
-            <a href="/whatsapp/dashboard/inbox">← Volver al Inbox</a>
-        </div>
-
-        <div class="chat">
-    """
-
-    if not messages:
-        html += "<p>No hay mensajes para este cliente.</p>"
-
-    for m in messages:
-        incoming = m["incoming_message"]
-        bot_reply = m["bot_reply"]
-        intent = m["detected_intent"]
-        created_at = m["created_at"]
-
-        if incoming:
-            html += f"""
-            <div class="msg-user">
-                <strong>Cliente:</strong><br>
-                {incoming}
-                <div class="time">{created_at}</div>
-            </div>
-            """
-
-        if bot_reply:
-            html += f"""
-            <div class="msg-bot">
-                <strong>Bot:</strong><br>
-                {bot_reply}
-                <div class="time">Intent: {intent} | {created_at}</div>
-            </div>
-            """
-
-    html += """
-        </div>
-    </div>
     </body>
     </html>
     """
@@ -1697,41 +1128,13 @@ def resolve_customer(customer_id):
 
     return redirect("/whatsapp/dashboard")
 
-@app.route("/whatsapp/dashboard/customer/<int:customer_id>", methods=["GET", "POST"])
+@app.get("/whatsapp/dashboard/customer/<int:customer_id>")
 def customer_conversation(customer_id):
 
     conn = get_db_connection()
 
     try:
         cursor = conn.cursor()
-
-        if request.method == "POST":
-            manual_reply = request.form.get("reply", "").strip()
-
-            cursor.execute("""
-                SELECT phone_number
-                FROM customers
-                WHERE id = %s
-                LIMIT 1
-            """, (customer_id,))
-
-            customer_phone_row = cursor.fetchone()
-
-            if manual_reply and customer_phone_row:
-                phone_number = customer_phone_row["phone_number"]
-
-                cursor.execute("""
-                    INSERT INTO whatsapp_messages
-                        (business_id, phone_number, incoming_message, bot_reply, detected_intent)
-                    VALUES
-                        (1, %s, NULL, %s, 'human_reply')
-                """, (phone_number, manual_reply))
-
-                send_whatsapp_message(phone_number, manual_reply)
-
-                conn.commit()
-
-            return redirect(f"/whatsapp/dashboard/customer/{customer_id}#bottom")
 
         cursor.execute("""
             SELECT
@@ -1746,7 +1149,7 @@ def customer_conversation(customer_id):
 
         cursor.execute("""
             SELECT
-                incoming_message, bot_reply,
+                incoming_message,
                 detected_intent,
                 created_at
             FROM whatsapp_messages
@@ -1761,7 +1164,6 @@ def customer_conversation(customer_id):
         <html>
         <head>
             <title>Conversación</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
                 body {{
                     font-family: Arial;
@@ -1769,78 +1171,11 @@ def customer_conversation(customer_id):
                     background: #f5f7fa;
                 }}
 
-                .chat-container {{
-                    height: 800px;
-                    overflow-y: auto;
-                    background: #e5ddd5;
-                    padding: 15px;
-                    border-radius: 10px;
-                }}
-
                 .message {{
-                    padding: 12px;
+                    background: white;
+                    padding: 10px;
                     margin-bottom: 10px;
-                    border-radius: 12px;
-                    max-width: 70%;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
-                }}
-
-                .customer {{
-                    background: #dcf8c6;
-                    margin-right: auto;
-                }}
-
-                .bot {{
-                    background: #ffffff;
-                    margin-left: auto;
-                }}
-                body {{
-                    font-size: 16px;
-                }}
-
-                textarea {{
-                    width: 100%;
-                    max-width: 700px;
-                    font-size: 16px;
-                }}
-
-                button {{
-                    font-size: 16px;
-                    padding: 8px 14px;
-                }}
-
-                @media (max-width: 768px) {{
-                    body {{
-                        margin: 10px;
-                        font-size: 18px;
-                    }}
-
-                    h1 {{
-                        font-size: 24px;
-                        margin-bottom: 10px;
-                    }}
-
-                    .chat-container {{
-                        height: 70vh;
-                        padding: 10px;
-                    }}
-
-                    .message {{
-                        max-width: 95%;
-                        font-size: 17px;
-                    }}
-
-                    textarea {{
-                        width: 100%;
-                        height: 90px;
-                        font-size: 18px;
-                    }}
-
-                    button {{
-                        width: 100%;
-                        font-size: 18px;
-                        padding: 12px;
-                    }}
+                    border-radius: 8px;
                 }}
             </style>
         </head>
@@ -1859,94 +1194,15 @@ def customer_conversation(customer_id):
         <hr>
         """
 
-        html += """
-        <div class="chat-container" id="chat-container">
-        """
-
         for m in messages:
-            created_at = m["created_at"]
-            incoming = m["incoming_message"]
-            bot_reply = m["bot_reply"]
-            intent = m["detected_intent"]
 
-
-            if incoming:
-                html += f"""
-                <div class="message customer">
-                    <strong>{created_at}</strong><br>
-                    <strong>Cliente:</strong> {incoming}<br>
+            html += f"""
+                <div class="message">
+                    <b>{m["created_at"]}</b><br>
+                    {m["incoming_message"]}<br>
+                    <small>{m["detected_intent"]}</small>
                 </div>
-                """
-
-            if bot_reply:
-
-                label = "Bot"
-
-                if intent == "human_reply":
-                    label = "Asesora"
-
-                html += f"""
-                <div class="message bot">
-                    <strong>{created_at}</strong><br>
-                    <strong>{label}:</strong> {bot_reply}
-                </div>
-                """
-
-        html += """
-        </div>
-
-        <script>
-        function scrollChatToBottom() {
-            const chat = document.getElementById("chat-container");
-            if (chat) {
-                chat.scrollTop = chat.scrollHeight;
-            }
-        }
-
-        window.onload = function() {
-            scrollChatToBottom();
-        };
-
-        setInterval(function() {
-            fetch(window.location.pathname + "/messages")
-                .then(response => response.text())
-                .then(html => {
-                    const chat = document.getElementById("chat-container");
-                    if (!chat) {
-                        return;
-                    }
-
-                    const wasNearBottom =
-                        chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 80;
-
-                    chat.innerHTML = html;
-
-                    if (wasNearBottom) {
-                        scrollChatToBottom();
-                    }
-                })
-                .catch(error => console.log("No se pudo actualizar el chat", error));
-        }, 3000);
-        </script>
-        """
-
-        html += """
-        <div id="bottom"></div>
-
-        <hr>
-        <h3>Respuesta manual</h3>
-
-        <form method="POST">
-            <textarea
-                name="reply"
-                rows="4"
-                cols="80"
-                placeholder="Escribe una respuesta manual..."
-            ></textarea>
-            <br><br>
-            <button type="submit">Enviar respuesta</button>
-        </form>
-        """
+            """
 
         html += """
         </body>
@@ -1957,75 +1213,6 @@ def customer_conversation(customer_id):
 
     finally:
         conn.close()
-
-@app.route("/whatsapp/dashboard/customer/<int:customer_id>/messages")
-def customer_messages_partial(customer_id):
-    conn = get_db_connection()
-
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT
-                phone_number
-            FROM customers
-            WHERE id = %s
-        """, (customer_id,))
-
-        customer = cursor.fetchone()
-
-        if not customer:
-            return ""
-
-        cursor.execute("""
-            SELECT
-                incoming_message,
-                bot_reply,
-                detected_intent,
-                created_at
-            FROM whatsapp_messages
-            WHERE business_id = 1
-              AND phone_number = %s
-            ORDER BY created_at ASC
-        """, (customer["phone_number"],))
-
-        messages = cursor.fetchall()
-
-        html = ""
-
-        for m in messages:
-            created_at = m["created_at"]
-            incoming = m["incoming_message"]
-            bot_reply = m["bot_reply"]
-            intent = m["detected_intent"]
-
-            if incoming:
-                html += f"""
-                <div class="message customer">
-                    <strong>{created_at}</strong><br>
-                    <strong>Cliente:</strong> {incoming}<br>
-                </div>
-                """
-
-            if bot_reply:
-                label = "Bot"
-
-                if intent == "human_reply":
-                    label = "Asesora"
-
-                html += f"""
-                <div class="message bot">
-                    <strong>{created_at}</strong><br>
-                    <strong>{label}:</strong> {bot_reply}
-                </div>
-                """
-
-        return html
-
-    finally:
-        conn.close()
-
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5100)
