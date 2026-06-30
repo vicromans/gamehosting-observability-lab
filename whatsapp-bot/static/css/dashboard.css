@@ -1,0 +1,17 @@
+.alert-human{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    background:#fff4e5;
+
+    border-left:6px solid #f97316;
+
+    padding:18px 20px;
+
+    margin:20px 0;
+
+    border-radius:10px;
+
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+}

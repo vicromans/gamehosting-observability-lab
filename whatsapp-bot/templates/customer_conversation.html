@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}
+Conversación · {{ business.business_name }}
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/whatsapp/static/css/conversation.css">
+{% endblock %}
+
+{% block content %}
+
+{% set page_title = "Conversación" %}
+{% set page_subtitle = customer.customer_name or customer.phone_number %}
+{% include "components/topbar.html" %}
+
+<div class="conversation-page">
+
+    <div class="conversation-header">
+        <div>
+            <strong>{{ customer.customer_name or "Cliente sin nombre" }}</strong><br>
+            <span>{{ customer.phone_number }}</span>
+        </div>
+
+        <a class="btn btn-secondary" href="/whatsapp/dashboard/clients">
+            ← Volver a Clientes
+        </a>
+    </div>
+
+    <div class="chat-window" id="chat-container">
+        {% include "components/chat_messages.html" %}
+    </div>
+
+    <form method="POST" class="reply-box" id="reply-form">
+        <textarea
+            name="reply"
+            id="reply-textarea"
+            placeholder="Escribe una respuesta..."
+            rows="2"
+        ></textarea>
+
+        <div class="reply-actions">
+            {% set button_text = "Enviar" %}
+            {% set button_type = "submit" %}
+            {% set button_variant = "primary" %}
+            {% include "components/button.html" %}
+
+            <button type="button" class="btn btn-secondary" id="open-template-panel">
+                📄 Plantilla
+            </button>
+        </div>
+    </form>
+<div class="template-panel" id="template-panel">
+    <h3>Enviar plantilla</h3>
+
+    <p class="template-help">
+        Usa esta opción cuando hayan pasado más de 24 horas desde el último mensaje del cliente.
+    </p>
+
+    <form method="POST" action="/whatsapp/dashboard/customer/{{ customer.id }}/send-template">
+        <label>Plantilla</label>
+        <select name="template_name">
+            <option value="seguimiento_cliente">Seguimiento cliente</option>
+        </select>
+
+        <label>Nombre del cliente</label>
+        <input
+            type="text"
+            name="customer_name"
+            value="{{ customer.customer_name or 'Cliente' }}"
+        >
+
+        <label>Motivo / servicio</label>
+        <input
+            type="text"
+            name="topic"
+            value="tu cita o consulta"
+        >
+
+        <div class="template-actions">
+            <button type="submit" class="btn btn-primary">
+                Enviar plantilla
+            </button>
+
+            <button type="button" class="btn btn-secondary" id="close-template-panel">
+                Cancelar
+            </button>
+        </div>
+    </form>
+</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/whatsapp/static/js/conversation.js"></script>
+{% endblock %}

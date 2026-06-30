@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ business.business_name }} Dashboard
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/whatsapp/static/css/dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="topbar">
+    <h1>Dashboard</h1>
+    <div class="business-pill">
+        {{ business.business_name }} · {{ business.business_type }}
+    </div>
+</div>
+
+<section class="stats">
+    <div class="card">
+        <div class="stat-label">Citas de hoy</div>
+        <div class="stat-number">{{ today_appointments|length }}</div>
+    </div>
+
+    <div class="card">
+        <div class="stat-label">Esperando humano</div>
+        <div class="stat-number">{{ human_queue|length }}</div>
+    </div>
+
+    <div class="card">
+        <div class="stat-label">Clientes recientes</div>
+        <div class="stat-number">{{ customers|length }}</div>
+    </div>
+
+    <div class="card">
+        <div class="stat-label">Servicios activos</div>
+        <div class="stat-number">{{ services|length }}</div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>{{ business.business_name }}</h2>
+    <p><b>Tipo:</b> {{ business.business_type }}</p>
+    <p><b>Propietaria:</b> {{ business.owner_name }}</p>
+    <p><b>Teléfono:</b> {{ business.phone_number }}</p>
+</section>
+
+<h2 class="section-title">Servicios activos</h2>
+
+<table>
+    <tr>
+        <th>Servicio</th>
+        <th>Precio</th>
+        <th>Duración</th>
+        <th>Anticipo</th>
+        <th>Garantía</th>
+    </tr>
+
+    {% for s in services %}
+    <tr>
+        <td>{{ s.service_name }}</td>
+        <td>
+            {% if s.price is none %}
+                Cotización
+            {% else %}
+                ${{ s.price }}
+            {% endif %}
+        </td>
+        <td>{{ s.duration_minutes }} min</td>
+        <td>
+            {% if s.requires_deposit %}
+                ${{ s.deposit_amount }}
+            {% else %}
+                No
+            {% endif %}
+        </td>
+        <td>{{ s.warranty_days }} días</td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

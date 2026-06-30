@@ -1,0 +1,21 @@
+{% for m in messages %}
+    {% if m.incoming_message %}
+    <div class="message customer">
+        <div class="message-meta">{{ m.created_at }} · Cliente</div>
+        <div>{{ m.incoming_message }}</div>
+    </div>
+    {% endif %}
+
+    {% if m.bot_reply %}
+        {% if m.detected_intent == "human_reply" %}
+            {% set label = "Asesora" %}
+        {% else %}
+            {% set label = "Bot" %}
+        {% endif %}
+
+    <div class="message bot">
+        <div class="message-meta">{{ m.created_at }} · {{ label }}</div>
+        <div>{{ m.bot_reply }}</div>
+    </div>
+    {% endif %}
+{% endfor %}

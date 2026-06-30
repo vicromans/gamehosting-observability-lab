@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ business.business_name }} Dashboard
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/whatsapp/static/css/dashboard.css">
+{% endblock %}
+
+{% block content %}
+
+{% set page_title = "Dashboard" %}
+{% set page_subtitle = "Resumen general del negocio" %}
+{% include "components/topbar.html" %}
+
+{% if human_queue|length > 0 %}
+<div class="alert-human">
+    <div>
+        <strong>🔴 Atención requerida</strong><br>
+        Hay {{ human_queue|length }} cliente{% if human_queue|length != 1 %}s{% endif %} esperando atención humana.
+    </div>
+
+{% if human_queue|length == 1 %}
+    <a class="btn btn-secondary" href="/whatsapp/dashboard/customer/{{ human_queue[0].id }}">
+        Responder ahora
+    </a>
+{% else %}
+    <a class="btn btn-secondary" href="/whatsapp/dashboard/clients">
+        Ver clientes
+    </a>
+{% endif %}
+</div>
+{% endif %}
+
+<section class="stats">
+
+    {% set label = "Citas de hoy" %}
+    {% set value = today_appointments|length %}
+    {% include "components/stat_card.html" %}
+
+    {% set label = "Esperando humano" %}
+    {% set value = human_queue|length %}
+    {% include "components/stat_card.html" %}
+
+    {% set label = "Clientes recientes" %}
+    {% set value = customers|length %}
+    {% include "components/stat_card.html" %}
+
+    {% set label = "Servicios activos" %}
+    {% set value = services|length %}
+    {% include "components/stat_card.html" %}
+
+</section>
+
+<section class="card">
+    <h2>{{ business.business_name }}</h2>
+    <p><b>Tipo:</b> {{ business.business_type }}</p>
+    <p><b>Propietaria:</b> {{ business.owner_name }}</p>
+    <p><b>Teléfono:</b> {{ business.phone_number }}</p>
+</section>
+
+<h2 class="section-title">Servicios activos</h2>
+
+<table>
+    <tr>
+        <th>Servicio</th>
+        <th>Precio</th>
+        <th>Duración</th>
+        <th>Anticipo</th>
+        <th>Garantía</th>
+        <th>Acciones</th>
+    </tr>
+
+    {% for s in services %}
+    <tr>
+        <td>{{ s.service_name }}</td>
+        <td>
+            {% if s.price is none %}
+                Cotización
+            {% else %}
+                ${{ s.price }}
+            {% endif %}
+        </td>
+        <td>{{ s.duration_minutes }} min</td>
+        <td>
+            {% if s.requires_deposit %}
+                ${{ s.deposit_amount }}
+            {% else %}
+                No
+            {% endif %}
+        </td>
+        <td>
+
+        {% if s.warranty_days > 0 %}
+
+            {% set badge_text = s.warranty_days ~ " días" %}
+            {% set badge_variant = "success" %}
+            {% include "components/badge.html" %}
+
+        {% else %}
+
+            {% set badge_text = "Sin garantía" %}
+            {% set badge_variant = "secondary" %}
+            {% include "components/badge.html" %}
+
+        {% endif %}
+
+        </td>
+        <td>
+            {% set button_text = "Ver detalle" %}
+            {% set button_type = "button" %}
+            {% set button_variant = "outline" %}
+            {% include "components/button.html" %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

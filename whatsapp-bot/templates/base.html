@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{{ business.business_name }}{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="/whatsapp/static/css/theme.css">
+
+    {% block styles %}
+    {% endblock %}
+</head>
+
+<body>
+    <div class="layout">
+
+        {% include "components/sidebar.html" %}
+
+        <main class="main">
+            {% block content %}
+            {% endblock %}
+        </main>
+
+    </div>
+
+    {% block scripts %}
+    {% endblock %}
+</body>
+</html>

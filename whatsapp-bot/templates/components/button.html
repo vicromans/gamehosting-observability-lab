@@ -1,0 +1,6 @@
+{% set button_type = button_type | default("button") %}
+{% set button_variant = button_variant | default("primary") %}
+
+<button type="{{ button_type }}" class="btn btn-{{ button_variant }}">
+    {{ button_text }}
+</button>

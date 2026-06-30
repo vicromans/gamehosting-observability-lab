@@ -1,29 +1,4 @@
-from flask import (
-    Flask,
-    request,
-    jsonify,
-    redirect,
-    render_template,
-    send_from_directory
-)
-from services.whatsapp_service import (
-    send_whatsapp_message,
-    send_whatsapp_template_message,
-)
-
-from services.appointment_service import (
-    get_service_duration_minutes,
-    save_appointment,
-    time_to_minutes,
-    ranges_overlap,
-    is_time_slot_available,
-    format_time_for_user,
-    is_slot_blocked,
-    is_day_blocked,
-    get_available_times,
-    format_available_times_message,
-)
-from meta_errors import translate_meta_error
+from flask import Flask, request, jsonify, redirect
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pymysql
@@ -38,6 +13,29 @@ WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "veldriklabs_verify_2026")
 
 conversation_state = {}
+
+def send_whatsapp_message(to, message):
+    url = f"https://graph.facebook.com/v23.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {
+            "body": message
+        }
+    }
+
+    response = requests.post(url, headers=headers, json=payload, timeout=10)
+    print("WHATSAPP SEND STATUS:", response.status_code)
+    print("WHATSAPP SEND RESPONSE:", response.text)
+
+    return response
 
 VERIFY_TOKEN = "veldriklabs_whatsapp_verify"
 
@@ -70,6 +68,68 @@ def verify_webhook():
 
 def get_db_connection():
     return pymysql.connect(**DB_CONFIG)
+
+def get_service_duration_minutes(service_name):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT duration_minutes
+        FROM services
+        WHERE business_id = %s
+          AND LOWER(service_name) LIKE %s
+          AND active = 1
+        LIMIT 1
+    """, (1, f"%{service_name.lower()}%"))
+
+    row = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if not row:
+        return 120
+
+    if isinstance(row, dict):
+        return row.get("duration_minutes") or 120
+
+    return row[0] or 120
+
+
+def save_appointment(phone_number, customer_name, service_name, appointment_date, appointment_time):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO appointments (
+            business_id,
+            customer_phone,
+            customer_name,
+            service_name,
+            appointment_date,
+            appointment_time,
+            status,
+            deposit_required,
+            deposit_paid,
+            notes
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        1,
+        phone_number,
+        customer_name,
+        service_name,
+        appointment_date,
+        appointment_time,
+        "pending",
+        150.00,
+        False,
+        "Cita creada desde WhatsApp bot"
+    ))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 def parse_time_from_message(message):
     text = message.lower().strip()
@@ -172,6 +232,130 @@ def parse_date_from_message(message):
             return today + timedelta(days=days_ahead)
 
     return None
+
+
+def time_to_minutes(time_value):
+    time_text = str(time_value)
+    parts = time_text.split(":")
+    return int(parts[0]) * 60 + int(parts[1])
+
+
+def ranges_overlap(start_a, end_a, start_b, end_b):
+    return start_a < end_b and end_a > start_b
+
+
+def is_time_slot_available(appointment_date, appointment_time, service_name=None):
+    if is_day_blocked(appointment_date):
+        return False
+
+    if is_slot_blocked(appointment_date, appointment_time):
+        return False
+
+    requested_duration = get_service_duration_minutes(service_name or "")
+    requested_start = time_to_minutes(appointment_time)
+    requested_end = requested_start + requested_duration
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            service_name,
+            appointment_time
+        FROM appointments
+        WHERE business_id = %s
+          AND appointment_date = %s
+          AND status != 'canceled'
+    """, (1, appointment_date))
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    for row in rows:
+        if isinstance(row, dict):
+            existing_service = row["service_name"]
+            existing_time = row["appointment_time"]
+        else:
+            existing_service = row[0]
+            existing_time = row[1]
+
+        existing_duration = get_service_duration_minutes(existing_service or "")
+        existing_start = time_to_minutes(existing_time)
+        existing_end = existing_start + existing_duration
+
+        if ranges_overlap(requested_start, requested_end, existing_start, existing_end):
+            return False
+
+    return True
+
+
+def format_time_for_user(time_value):
+    time_text = str(time_value)
+
+    if time_text == "10:00:00":
+        return "10:00"
+    if time_text == "12:00:00":
+        return "12:00"
+    if time_text == "15:00:00":
+        return "15:00"
+
+    return time_text[:5]
+
+
+AVAILABLE_TIMES = ["10:00:00", "12:00:00", "15:00:00"]
+
+
+def is_slot_blocked(appointment_date, appointment_time):
+    # TODO: conectar con tabla de horarios bloqueados manualmente.
+    # Por ahora ningún horario está bloqueado manualmente.
+    return False
+
+
+def is_day_blocked(appointment_date):
+    # TODO: conectar con tabla de días bloqueados/no laborables.
+    # Por ahora ningún día está bloqueado automáticamente.
+    return False
+
+
+def get_available_times(appointment_date, service_name=None):
+    available = []
+
+    if is_day_blocked(appointment_date):
+        return available
+
+    today = datetime.now(ZoneInfo("America/Mexico_City")).date()
+    current_minutes = datetime.now().hour * 60 + datetime.now().minute
+    minimum_notice_minutes = 60
+
+    for time_slot in AVAILABLE_TIMES:
+        slot_minutes = time_to_minutes(time_slot)
+
+        if str(appointment_date) == str(today):
+            if slot_minutes <= current_minutes + minimum_notice_minutes:
+                continue
+
+        if is_time_slot_available(appointment_date, time_slot, service_name):
+            available.append(time_slot)
+
+    return available
+
+
+def format_available_times_message(available_times):
+    if not available_times:
+        return None
+
+    readable = [format_time_for_user(t) for t in available_times]
+
+    if len(readable) == 1:
+        return readable[0]
+
+    if len(readable) == 2:
+        return f"{readable[0]} o {readable[1]}"
+
+    return f"{', '.join(readable[:-1])} o {readable[-1]}"
+
 
 
 def clean_customer_name(message):
@@ -757,12 +941,7 @@ def receive_message():
         print(f"Saved WhatsApp message from {phone_number}: {incoming_message}", flush=True)
 
         if reply:
-            send_whatsapp_message(
-                phone_number,
-                reply,
-                WHATSAPP_PHONE_NUMBER_ID,
-                WHATSAPP_TOKEN
-            )
+            send_whatsapp_message(phone_number, reply)
 
         return jsonify({
             "status": "saved",
@@ -965,10 +1144,6 @@ def appointment_actions(a):
 
     return status
 
-@app.get("/whatsapp/static/<path:filename>")
-def whatsapp_static(filename):
-    return send_from_directory("static", filename)
-
 @app.get("/dashboard")
 @app.get("/whatsapp/dashboard")
 def dashboard():
@@ -1057,19 +1232,6 @@ def dashboard():
             """, (local_today,))
             today_appointments = cursor.fetchall()
 
-        return render_template(
-            "dashboard.html",
-            business=business,
-            customers=customers,
-            human_queue=human_queue,
-            services=services,
-            messages=messages,
-            appointments=appointments,
-            today_appointments=today_appointments,
-            local_today=local_today,
-            active_page="dashboard"
-        )
-
         html = f"""
         <html>
         <head>
@@ -1088,14 +1250,6 @@ def dashboard():
         </head>
         <body>
             <h1>VeldrikLabs Dashboard</h1>
- 
-              <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin:20px 0;">
-                  <div class="card"><b>Citas de hoy</b><div style="font-size:34px;font-weight:bold;margin-top:8px;">{len(today_appointments)}</div></div>
-                  <div class="card"><b>Esperando humano</b><div style="font-size:34px;font-weight:bold;margin-top:8px;">{len(human_queue)}</div></div>
-                  <div class="card"><b>Clientes recientes</b><div style="font-size:34px;font-weight:bold;margin-top:8px;">{len(customers)}</div></div>
-                  <div class="card"><b>Servicios activos</b><div style="font-size:34px;font-weight:bold;margin-top:8px;">{len(services)}</div></div>
-              </div>
-
 
             <div class="card">
                 <h2>{business["business_name"]}</h2>
@@ -1321,40 +1475,6 @@ def dashboard():
         """
 
         return html
-
-    finally:
-        connection.close()
-
-@app.get("/whatsapp/dashboard/clients")
-def dashboard_clients():
-    connection = pymysql.connect(**DB_CONFIG)
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM businesses WHERE id = 1")
-            business = cursor.fetchone()
-
-            cursor.execute("""
-                SELECT
-                    id,
-                    phone_number,
-                    customer_name,
-                    allergy_notes,
-                    accepted_policies,
-                    human_required,
-                    last_contact
-                FROM customers
-                WHERE business_id = 1
-                ORDER BY last_contact DESC
-            """)
-            customers = cursor.fetchall()
-
-        return render_template(
-            "clients.html",
-            business=business,
-            customers=customers,
-            active_page="clients"
-        )
 
     finally:
         connection.close()
@@ -1607,12 +1727,7 @@ def customer_conversation(customer_id):
                         (1, %s, NULL, %s, 'human_reply')
                 """, (phone_number, manual_reply))
 
-                send_whatsapp_message(
-                    phone_number,
-                    manual_reply,
-                    WHATSAPP_PHONE_NUMBER_ID,
-                    WHATSAPP_TOKEN
-                )
+                send_whatsapp_message(phone_number, manual_reply)
 
                 conn.commit()
 
@@ -1642,82 +1757,203 @@ def customer_conversation(customer_id):
 
         messages = cursor.fetchall()
 
-        cursor.execute("SELECT * FROM businesses WHERE id = 1")
-        business = cursor.fetchone()
+        html = f"""
+        <html>
+        <head>
+            <title>Conversación</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{
+                    font-family: Arial;
+                    margin: 30px;
+                    background: #f5f7fa;
+                }}
 
-        return render_template(
-            "customer_conversation.html",
-            business=business,
-            customer=customer,
-            messages=messages,
-            active_page="clients"
-        )
+                .chat-container {{
+                    height: 800px;
+                    overflow-y: auto;
+                    background: #e5ddd5;
+                    padding: 15px;
+                    border-radius: 10px;
+                }}
 
-    finally:
-        conn.close()
+                .message {{
+                    padding: 12px;
+                    margin-bottom: 10px;
+                    border-radius: 12px;
+                    max-width: 70%;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+                }}
 
-@app.route("/whatsapp/dashboard/customer/<int:customer_id>/send-template", methods=["POST"])
-def send_customer_template(customer_id):
-    template_name = request.form.get("template_name", "").strip()
-    customer_name = request.form.get("customer_name", "").strip()
-    topic = request.form.get("topic", "").strip()
+                .customer {{
+                    background: #dcf8c6;
+                    margin-right: auto;
+                }}
 
-    conn = get_db_connection()
+                .bot {{
+                    background: #ffffff;
+                    margin-left: auto;
+                }}
+                body {{
+                    font-size: 16px;
+                }}
 
-    try:
-        cursor = conn.cursor()
+                textarea {{
+                    width: 100%;
+                    max-width: 700px;
+                    font-size: 16px;
+                }}
 
-        cursor.execute("""
-            SELECT phone_number
-            FROM customers
-            WHERE id = %s
-            LIMIT 1
-        """, (customer_id,))
+                button {{
+                    font-size: 16px;
+                    padding: 8px 14px;
+                }}
 
-        customer = cursor.fetchone()
+                @media (max-width: 768px) {{
+                    body {{
+                        margin: 10px;
+                        font-size: 18px;
+                    }}
 
-        if not customer:
-            return redirect("/whatsapp/dashboard/clients")
+                    h1 {{
+                        font-size: 24px;
+                        margin-bottom: 10px;
+                    }}
 
-        phone_number = customer["phone_number"]
+                    .chat-container {{
+                        height: 70vh;
+                        padding: 10px;
+                    }}
 
-        response = send_whatsapp_template_message(
-            phone_number,
-            template_name,
-            customer_name,
-            topic,
-            WHATSAPP_PHONE_NUMBER_ID,
-            WHATSAPP_TOKEN
-        )
+                    .message {{
+                        max-width: 95%;
+                        font-size: 17px;
+                    }}
 
-        if response.status_code in (200, 201):
-            message_log = f"[Plantilla enviada] {template_name} para {customer_name}: {topic}"
-            intent = "template_sent"
-        else:
-            friendly_error = translate_meta_error(response.text)
+                    textarea {{
+                        width: 100%;
+                        height: 90px;
+                        font-size: 18px;
+                    }}
 
-            message_log = (
-                f"⚠️ {friendly_error['title']}\n"
-                f"{friendly_error['message']}\n\n"
-                f"Detalles técnicos: {friendly_error['technical']}"
-            )
+                    button {{
+                        width: 100%;
+                        font-size: 18px;
+                        padding: 12px;
+                    }}
+                }}
+            </style>
+        </head>
 
-            intent = "template_error"
+        <body>
 
-        cursor.execute("""
-            INSERT INTO whatsapp_messages
-                (business_id, phone_number, incoming_message, bot_reply, detected_intent)
-            VALUES
-                (1, %s, NULL, %s, %s)
-        """, (
-            phone_number,
-            message_log,
-            intent
-        ))
+        <h1>
+            Conversación con
+            {customer["customer_name"] or customer["phone_number"]}
+        </h1>
 
-        conn.commit()
+        <a href="/whatsapp/dashboard">
+            ← Volver al Dashboard
+        </a>
 
-        return redirect(f"/whatsapp/dashboard/customer/{customer_id}#bottom")
+        <hr>
+        """
+
+        html += """
+        <div class="chat-container" id="chat-container">
+        """
+
+        for m in messages:
+            created_at = m["created_at"]
+            incoming = m["incoming_message"]
+            bot_reply = m["bot_reply"]
+            intent = m["detected_intent"]
+
+
+            if incoming:
+                html += f"""
+                <div class="message customer">
+                    <strong>{created_at}</strong><br>
+                    <strong>Cliente:</strong> {incoming}<br>
+                </div>
+                """
+
+            if bot_reply:
+
+                label = "Bot"
+
+                if intent == "human_reply":
+                    label = "Asesora"
+
+                html += f"""
+                <div class="message bot">
+                    <strong>{created_at}</strong><br>
+                    <strong>{label}:</strong> {bot_reply}
+                </div>
+                """
+
+        html += """
+        </div>
+
+        <script>
+        function scrollChatToBottom() {
+            const chat = document.getElementById("chat-container");
+            if (chat) {
+                chat.scrollTop = chat.scrollHeight;
+            }
+        }
+
+        window.onload = function() {
+            scrollChatToBottom();
+        };
+
+        setInterval(function() {
+            fetch(window.location.pathname + "/messages")
+                .then(response => response.text())
+                .then(html => {
+                    const chat = document.getElementById("chat-container");
+                    if (!chat) {
+                        return;
+                    }
+
+                    const wasNearBottom =
+                        chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 80;
+
+                    chat.innerHTML = html;
+
+                    if (wasNearBottom) {
+                        scrollChatToBottom();
+                    }
+                })
+                .catch(error => console.log("No se pudo actualizar el chat", error));
+        }, 3000);
+        </script>
+        """
+
+        html += """
+        <div id="bottom"></div>
+
+        <hr>
+        <h3>Respuesta manual</h3>
+
+        <form method="POST">
+            <textarea
+                name="reply"
+                rows="4"
+                cols="80"
+                placeholder="Escribe una respuesta manual..."
+            ></textarea>
+            <br><br>
+            <button type="submit">Enviar respuesta</button>
+        </form>
+        """
+
+        html += """
+        </body>
+        </html>
+        """
+
+        return html
 
     finally:
         conn.close()

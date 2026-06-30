@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ business.business_name }} Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+            color: #222;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #111827;
+            color: white;
+            padding: 24px 18px;
+        }
+
+        .brand {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .brand-subtitle {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-bottom: 30px;
+        }
+
+        .menu a {
+            display: block;
+            color: #d1d5db;
+            text-decoration: none;
+            padding: 12px 14px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .menu a:hover {
+            background: #1f2937;
+            color: white;
+        }
+
+        .menu a.active {
+            background: #2563eb;
+            color: white;
+        }
+
+        .main {
+            flex: 1;
+            padding: 28px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .business-pill {
+            background: white;
+            padding: 10px 14px;
+            border-radius: 999px;
+            font-size: 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .stat-number {
+            font-size: 34px;
+            font-weight: bold;
+        }
+
+        .section-title {
+            margin-top: 28px;
+            margin-bottom: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f9fafb;
+            color: #374151;
+        }
+
+        @media (max-width: 800px) {
+            .layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: auto;
+            }
+
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="layout">
+
+        <aside class="sidebar">
+            <div class="brand">{{ business.business_name }}</div>
+            <div class="brand-subtitle">Panel de administración</div>
+
+            <nav class="menu">
+                <a class="active" href="/whatsapp/dashboard">📊 Dashboard</a>
+                <a href="/whatsapp/dashboard/inbox">💬 Inbox</a>
+                <a href="#">📅 Agenda</a>
+                <a href="#">👥 Clientes</a>
+                <a href="#">💅 Servicios</a>
+                <a href="#">⚙️ Configuración</a>
+            </nav>
+        </aside>
+
+        <main class="main">
+
+            <div class="topbar">
+                <h1>Dashboard</h1>
+                <div class="business-pill">
+                    {{ business.business_name }} · {{ business.business_type }}
+                </div>
+            </div>
+
+            <section class="stats">
+                <div class="card">
+                    <div class="stat-label">Citas de hoy</div>
+                    <div class="stat-number">{{ today_appointments|length }}</div>
+                </div>
+
+                <div class="card">
+                    <div class="stat-label">Esperando humano</div>
+                    <div class="stat-number">{{ human_queue|length }}</div>
+                </div>
+
+                <div class="card">
+                    <div class="stat-label">Clientes recientes</div>
+                    <div class="stat-number">{{ customers|length }}</div>
+                </div>
+
+                <div class="card">
+                    <div class="stat-label">Servicios activos</div>
+                    <div class="stat-number">{{ services|length }}</div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>{{ business.business_name }}</h2>
+                <p><b>Tipo:</b> {{ business.business_type }}</p>
+                <p><b>Propietaria:</b> {{ business.owner_name }}</p>
+                <p><b>Teléfono:</b> {{ business.phone_number }}</p>
+            </section>
+
+            <h2 class="section-title">Servicios activos</h2>
+
+            <table>
+                <tr>
+                    <th>Servicio</th>
+                    <th>Precio</th>
+                    <th>Duración</th>
+                    <th>Anticipo</th>
+                    <th>Garantía</th>
+                </tr>
+
+                {% for s in services %}
+                <tr>
+                    <td>{{ s.service_name }}</td>
+                    <td>
+                        {% if s.price is none %}
+                            Cotización
+                        {% else %}
+                            ${{ s.price }}
+                        {% endif %}
+                    </td>
+                    <td>{{ s.duration_minutes }} min</td>
+                    <td>
+                        {% if s.requires_deposit %}
+                            ${{ s.deposit_amount }}
+                        {% else %}
+                            No
+                        {% endif %}
+                    </td>
+                    <td>{{ s.warranty_days }} días</td>
+                </tr>
+                {% endfor %}
+            </table>
+
+        </main>
+    </div>
+</body>
+</html>

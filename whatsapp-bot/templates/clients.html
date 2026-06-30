@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ business.business_name }} Clientes
+{% endblock %}
+
+{% block content %}
+
+{% set page_title = "Clientes" %}
+{% set page_subtitle = "Historial y estado de clientes" %}
+{% include "components/topbar.html" %}
+
+<h2 class="section-title">Clientes registrados</h2>
+
+<table>
+    <tr>
+        <th>Nombre</th>
+        <th>Teléfono</th>
+        <th>Alergias / notas</th>
+        <th>Políticas</th>
+        <th>Atención</th>
+        <th>Último contacto</th>
+        <th>Acciones</th>
+    </tr>
+
+    {% for c in customers %}
+    <tr>
+        <td>{{ c.customer_name or "Sin nombre" }}</td>
+        <td>{{ c.phone_number }}</td>
+        <td>{{ c.allergy_notes or "-" }}</td>
+        <td>
+            {% if c.accepted_policies %}
+                {% set badge_text = "Aceptadas" %}
+                {% set badge_variant = "success" %}
+            {% else %}
+                {% set badge_text = "Pendiente" %}
+                {% set badge_variant = "warning" %}
+            {% endif %}
+            {% include "components/badge.html" %}
+        </td>
+        <td>
+            {% if c.human_required %}
+                {% set badge_text = "Requiere humano" %}
+                {% set badge_variant = "danger" %}
+            {% else %}
+                {% set badge_text = "Bot activo" %}
+                {% set badge_variant = "info" %}
+            {% endif %}
+            {% include "components/badge.html" %}
+        </td>
+        <td>
+            <a class="btn btn-outline" href="/whatsapp/dashboard/customer/{{ c.id }}">
+                Ver conversación
+            </a>
+
+            {% if c.human_required %}
+            <form method="POST"
+                  action="/whatsapp/dashboard/customers/{{ c.id }}/resolved"
+                  style="display:inline;">
+                {% set button_text = "Marcar atendido" %}
+                {% set button_type = "submit" %}
+                {% set button_variant = "secondary" %}
+                {% include "components/button.html" %}
+            </form>
+            {% endif %}
+        </td>
+        <td>{{ c.last_contact }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}
