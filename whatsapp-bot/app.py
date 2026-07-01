@@ -39,11 +39,11 @@ from services.conversation_service import (
 from meta_errors import translate_meta_error
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import pymysql
 import os
 import requests
 import re
 
+from database.connection import get_db_connection
 from routes.dashboard_routes import dashboard_bp
 
 app = Flask(__name__)
@@ -57,15 +57,6 @@ conversation_state = {}
 
 VERIFY_TOKEN = "veldriklabs_whatsapp_verify"
 
-DB_CONFIG = {
-    "host": "mariadb",
-    "user": "gameuser",
-    "password": "gamepass123",
-    "database": "gamehosting",
-    "charset": "utf8mb4",
-    "cursorclass": pymysql.cursors.DictCursor
-}
-
 @app.get("/webhook")
 @app.get("/whatsapp/webhook")
 def verify_webhook():
@@ -78,9 +69,6 @@ def verify_webhook():
         return challenge, 200
 
     return "Verification failed", 403
-
-def get_db_connection():
-    return pymysql.connect(**DB_CONFIG)
 
 def build_reply(message, phone_number):
     text = message.lower().strip()
@@ -393,7 +381,7 @@ def receive_message():
 
         customer_waiting_human = False
 
-        check_conn = pymysql.connect(**DB_CONFIG)
+        check_conn = get_db_connection()
         try:
             with check_conn.cursor() as check_cursor:
                 check_cursor.execute("""
@@ -432,7 +420,7 @@ def receive_message():
         elif "hola" in lower_msg or "buenas" in lower_msg:
             intent = "greeting"
 
-        connection = pymysql.connect(**DB_CONFIG)
+        connection = get_db_connection()
 
         try:
             with connection.cursor() as cursor:
@@ -485,7 +473,7 @@ def index():
     })
 
 def ensure_customer(phone_number):
-    connection = pymysql.connect(**DB_CONFIG)
+    connection = get_db_connection()
 
     try:
         with connection.cursor() as cursor:
@@ -502,7 +490,7 @@ def ensure_customer(phone_number):
         connection.close()
 
 def mark_human_required(phone_number):
-    connection = pymysql.connect(**DB_CONFIG)
+    connection = get_db_connection()
 
     try:
         with connection.cursor() as cursor:
@@ -518,7 +506,7 @@ def mark_human_required(phone_number):
         connection.close()
 
 def save_message(phone_number, incoming_message, bot_reply_text, detected_intent):
-    connection = pymysql.connect(**DB_CONFIG)
+    connection = get_db_connection()
 
     try:
         with connection.cursor() as cursor:
@@ -606,7 +594,7 @@ def test_bot():
 @app.get("/customers")
 @app.get("/whatsapp/customers")
 def list_customers():
-    connection = pymysql.connect(**DB_CONFIG)
+    connection = get_db_connection()
 
     try:
         with connection.cursor() as cursor:
@@ -674,7 +662,7 @@ def whatsapp_static(filename):
 @app.get("/whatsapp/dashboard")
 def dashboard():
     local_today = datetime.now(ZoneInfo("America/Mexico_City")).date()
-    connection = pymysql.connect(**DB_CONFIG)
+    connection = get_db_connection()
 
     try:
         with connection.cursor() as cursor:
@@ -777,7 +765,7 @@ def dashboard():
 
 @app.get("/whatsapp/dashboard/clients")
 def dashboard_clients():
-    connection = pymysql.connect(**DB_CONFIG)
+    connection = get_db_connection()
 
     try:
         with connection.cursor() as cursor:
