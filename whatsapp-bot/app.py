@@ -44,7 +44,10 @@ import os
 import requests
 import re
 
+from routes.dashboard_routes import dashboard_bp
+
 app = Flask(__name__)
+app.register_blueprint(dashboard_bp)
 
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
