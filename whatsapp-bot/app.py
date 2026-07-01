@@ -66,11 +66,6 @@ DB_CONFIG = {
     "cursorclass": pymysql.cursors.DictCursor
 }
 
-@app.get("/health")
-@app.get("/whatsapp/health")
-def health():
-    return jsonify({"status": "ok", "service": "whatsapp-bot"})
-
 @app.get("/webhook")
 @app.get("/whatsapp/webhook")
 def verify_webhook():
