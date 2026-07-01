@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Inbox Humano{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Inbox de Atención Humana</h1>
+    <p>Clientes que requieren respuesta manual.</p>
+</div>
+
+{% if not customers %}
+    <div class="card">
+        <p>No hay clientes pendientes de atención humana.</p>
+    </div>
+{% endif %}
+
+{% for c in customers %}
+    <div class="card">
+        <h3>{{ c.customer_name or "Cliente sin nombre" }}</h3>
+        <p><strong>Teléfono:</strong> {{ c.phone_number }}</p>
+        <p><strong>Último mensaje:</strong> {{ c.last_message or "Sin mensajes recientes" }}</p>
+        <p><strong>Fecha:</strong> {{ c.last_message_at or "" }}</p>
+
+        <a class="btn btn-primary" href="/whatsapp/dashboard/customer/{{ c.id }}">
+            Ver conversación
+        </a>
+    </div>
+{% endfor %}
+{% endblock %}

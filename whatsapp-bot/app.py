@@ -773,257 +773,6 @@ def dashboard():
             active_page="dashboard"
         )
 
-        html = f"""
-        <html>
-        <head>
-            <title>VeldrikLabs Dashboard</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 35px; background: #f5f7fa; color: #222; }}
-                h1 {{ color: #222; }}
-                h2 {{ margin-top: 35px; }}
-                table {{ border-collapse: collapse; width: 100%; background: white; margin-top: 10px; }}
-                th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
-                th {{ background: #222; color: white; }}
-                .card {{ background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }}
-                .badge {{ padding: 4px 8px; border-radius: 5px; background: #e8eefc; }}
-            </style>
-        </head>
-        <body>
-            <h1>VeldrikLabs Dashboard</h1>
- 
-              <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin:20px 0;">
-                  <div class="card"><b>Citas de hoy</b><div style="font-size:34px;font-weight:bold;margin-top:8px;">{len(today_appointments)}</div></div>
-                  <div class="card"><b>Esperando humano</b><div style="font-size:34px;font-weight:bold;margin-top:8px;">{len(human_queue)}</div></div>
-                  <div class="card"><b>Clientes recientes</b><div style="font-size:34px;font-weight:bold;margin-top:8px;">{len(customers)}</div></div>
-                  <div class="card"><b>Servicios activos</b><div style="font-size:34px;font-weight:bold;margin-top:8px;">{len(services)}</div></div>
-              </div>
-
-
-            <div class="card">
-                <h2>{business["business_name"]}</h2>
-                <p><b>Tipo:</b> {business["business_type"]}</p>
-                <p><b>Propietaria:</b> {business["owner_name"]}</p>
-                <p><b>Teléfono:</b> {business["phone_number"]}</p>
-            </div>
-
-            <h2>Servicios activos</h2>
-            <table>
-                <tr>
-                    <th>Servicio</th>
-                    <th>Precio</th>
-                    <th>Duración</th>
-                    <th>Anticipo</th>
-                    <th>Garantía</th>
-                </tr>
-        """
-
-        for s in services:
-            price = "Cotización" if s["price"] is None else f'${s["price"]}'
-            deposit = f'${s["deposit_amount"]}' if s["requires_deposit"] else "No"
-            html += f"""
-                <tr>
-                    <td>{s["service_name"]}</td>
-                    <td>{price}</td>
-                    <td>{s["duration_minutes"]} min</td>
-                    <td>{deposit}</td>
-                    <td>{s["warranty_days"]} días</td>
-                </tr>
-            """
-
-        html += """
-            </table>
-
-            <h2>Clientes recientes</h2>
-            <table>
-                <tr>
-                    <th>Teléfono</th>
-                    <th>Nombre</th>
-                    <th>Alergias / notas</th>
-                    <th>Políticas</th>
-                    <th>Atención</th>
-                    <th>Último contacto</th>
-                </tr>
-        """
-
-        for c in customers:
-            policies = "Aceptadas" if c["accepted_policies"] else "Pendiente"
-            attention = "⚠️ Requiere atención" if c["human_required"] else "Bot activo"
-
-            html += f"""
-                <tr>
-                    <td>{c["phone_number"]}</td>
-                    <td>{c["customer_name"] or ""}</td>
-                    <td>{c["allergy_notes"] or ""}</td>
-                    <td>{policies}</td>
-                    <td>{attention}</td>
-                    <td>{c["last_contact"]}</td>
-                </tr>
-            """
-        html += """
-            </table>
-        """
-
-        html += """
-            <h2>⚠️ Clientes que requieren atención</h2>
-
-            <table>
-                <tr>
-                    <th>Nombre</th>
-                    <th>Teléfono</th>
-                    <th>Último contacto</th>
-                    <th>Estado</th>
-                    <th>Conversación</th>
-                    <th>Acción</th>
-                </tr>
-        """
-
-        if not human_queue:
-            html += """
-                <tr>
-                    <td colspan="5">No hay clientes esperando atención humana.</td>
-                </tr>
-            """
-        else:
-            for h in human_queue:
-                html += f"""
-                    <tr>
-                        <td>{h["customer_name"] or ""}</td>
-                        <td>{h["phone_number"]}</td>
-                        <td>{h["last_contact"]}</td>
-            <td>⚠️ Requiere atención</td>
-
-            <td>
-                <a href="/whatsapp/dashboard/customer/{h['id']}">
-                    Ver conversación
-                </a>
-            </td>
-
-            <td>
-                <form method="POST"
-                      action="/whatsapp/dashboard/customers/{h['id']}/resolved">
-                                <button type="submit">Marcar atendido</button>
-                            </form>
-                        </td>
-                    </tr>
-                """
-
-        html += f"""
-            </table>
-
-            <h2>📅 Agenda de hoy</h2>
-            <p><b>Fecha local:</b> {local_today}</p>
-            <table>
-                <tr>
-                    <th>Hora</th>
-                    <th>Cliente</th>
-                    <th>Teléfono</th>
-                    <th>Servicio</th>
-                    <th>Estado</th>
-                    <th>Anticipo</th>
-                    <th>Pagado</th>
-                    <th>Acciones</th>
-                </tr>
-        """
-
-        if not today_appointments:
-            html += """
-                <tr>
-                    <td colspan="8">No hay citas agendadas para hoy.</td>
-                </tr>
-            """
-        else:
-            for a in today_appointments:
-                deposit_paid = "Sí" if a["deposit_paid"] else "No"
-                deposit_required = f'${a["deposit_required"]}' if a["deposit_required"] is not None else ""
-
-                html += f"""
-                    <tr>
-                        <td>{str(a["appointment_time"])[:5]}</td>
-                        <td>{a["customer_name"] or ""}</td>
-                        <td>{a["customer_phone"]}</td>
-                        <td>{a["service_name"]}</td>
-                        <td><span class="badge">{a["status"]}</span></td>
-                        <td>{deposit_required}</td>
-                        <td>{deposit_paid}</td>
-                        <td>
-                            {appointment_actions(a)}
-                        </td>
-                    </tr>
-                """
-
-        html += """
-            </table>
-        """
-
-        html += """
-            </table>
-
-            <h2>📅 Citas próximas</h2>
-            <table>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Hora</th>
-                    <th>Cliente</th>
-                    <th>Teléfono</th>
-                    <th>Servicio</th>
-                    <th>Estado</th>
-                    <th>Anticipo</th>
-                    <th>Pagado</th>
-                    <th>Acciones</th>
-                </tr>
-        """
-
-        for a in appointments:
-            deposit_paid = "Sí" if a["deposit_paid"] else "No"
-            deposit_required = f'${a["deposit_required"]}' if a["deposit_required"] is not None else ""
-
-            html += f"""
-                <tr>
-                    <td>{a["appointment_date"]}</td>
-                    <td>{str(a["appointment_time"])[:5]}</td>
-                    <td>{a["customer_name"] or ""}</td>
-                    <td>{a["customer_phone"]}</td>
-                    <td>{a["service_name"]}</td>
-                    <td><span class="badge">{a["status"]}</span></td>
-                    <td>{deposit_required}</td>
-                    <td>{deposit_paid}</td>
-                    <td>
-                        {appointment_actions(a)}
-                    </td>
-                </tr>
-            """
-
-        html += """
-            </table>
-
-            <h2>Mensajes recientes</h2>
-            <table>
-                <tr>
-                    <th>Teléfono</th>
-                    <th>Mensaje</th>
-                    <th>Intención</th>
-                    <th>Fecha</th>
-                </tr>
-        """
-
-        for m in messages:
-            html += f"""
-                <tr>
-                    <td>{m["phone_number"]}</td>
-                    <td>{m["incoming_message"]}</td>
-                    <td><span class="badge">{m["detected_intent"]}</span></td>
-                    <td>{m["created_at"]}</td>
-                </tr>
-            """
-
-        html += """
-            </table>
-        </body>
-        </html>
-        """
-
-        return html
 
     finally:
         connection.close()
@@ -1094,169 +843,49 @@ def update_appointment_status(appointment_id, action):
 @app.route("/whatsapp/dashboard/inbox")
 def dashboard_inbox():
     conn = get_db_connection()
-    cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT
-            c.id,
-            c.customer_name,
-            c.phone_number,
-            c.human_required,
-            (
-                SELECT incoming_message
-                FROM whatsapp_messages wm
-                WHERE wm.phone_number = c.phone_number
-                ORDER BY wm.created_at DESC
-                LIMIT 1
-            ) AS last_message,
-            (
-                SELECT created_at
-                FROM whatsapp_messages wm
-                WHERE wm.phone_number = c.phone_number
-                ORDER BY wm.created_at DESC
-                LIMIT 1
-            ) AS last_message_at
-        FROM customers c
-        WHERE c.human_required = 1
-        ORDER BY last_message_at DESC
-    """)
+    try:
+        cursor = conn.cursor()
 
-    customers = cursor.fetchall()
+        cursor.execute("""
+            SELECT
+                c.id,
+                c.customer_name,
+                c.phone_number,
+                c.human_required,
+                (
+                    SELECT incoming_message
+                    FROM whatsapp_messages wm
+                    WHERE wm.phone_number = c.phone_number
+                    ORDER BY wm.created_at DESC
+                    LIMIT 1
+                ) AS last_message,
+                (
+                    SELECT created_at
+                    FROM whatsapp_messages wm
+                    WHERE wm.phone_number = c.phone_number
+                    ORDER BY wm.created_at DESC
+                    LIMIT 1
+                ) AS last_message_at
+            FROM customers c
+            WHERE c.human_required = 1
+            ORDER BY last_message_at DESC
+        """)
 
-    cursor.close()
-    conn.close()
+        customers = cursor.fetchall()
 
-    html = """
-    <html>
-    <head>
-        <title>VeldrikLabs - Inbox Humano</title>
-        <style>
-            body { font-family: Arial; background: #f4f4f4; padding: 20px; }
-            .card { background: white; padding: 15px; margin-bottom: 12px; border-radius: 8px; }
-            .btn { background: #0d6efd; color: white; padding: 8px 12px; text-decoration: none; border-radius: 5px; }
-            .resolved { background: #198754; }
-        </style>
-    </head>
-    <body>
-        <h1>Inbox de Atención Humana</h1>
-        <p>Clientes que requieren respuesta manual.</p>
-        <a href="/whatsapp/dashboard">← Volver al Dashboard</a>
-        <hr>
-    """
+        cursor.execute("SELECT * FROM businesses WHERE id = 1")
+        business = cursor.fetchone()
 
-    if not customers:
-        html += "<p>No hay clientes pendientes de atención humana.</p>"
+        return render_template(
+            "inbox.html",
+            business=business,
+            customers=customers,
+            active_page="inbox"
+        )
 
-    for c in customers:
-        name = c["customer_name"] or "Cliente sin nombre"
-        phone = c["phone_number"]
-        last_message = c["last_message"] or "Sin mensajes recientes"
-        last_message_at = c["last_message_at"] or ""
-
-        html += f"""
-        <div class="card">
-            <h3>{name}</h3>
-            <p><strong>Teléfono:</strong> {phone}</p>
-            <p><strong>Último mensaje:</strong> {last_message}</p>
-            <p><strong>Fecha:</strong> {last_message_at}</p>
-            <a class="btn" href="/whatsapp/dashboard/inbox/{phone}">Ver conversación</a>
-        </div>
-        """
-
-    html += """
-    </body>
-    </html>
-    """
-
-    return html
-
-@app.route("/whatsapp/dashboard/inbox/<phone>")
-def dashboard_conversation(phone):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT customer_name, phone_number, human_required
-        FROM customers
-        WHERE phone_number = %s
-        LIMIT 1
-    """, (phone,))
-    customer = cursor.fetchone()
-
-    cursor.execute("""
-        SELECT incoming_message, bot_reply, detected_intent, created_at
-        FROM whatsapp_messages
-        WHERE phone_number = %s
-        ORDER BY created_at ASC
-    """, (phone,))
-    messages = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    customer_name = customer["customer_name"] if customer and customer["customer_name"] else "Cliente sin nombre"
-
-    html = f"""
-    <html>
-    <head>
-        <title>Conversación - {customer_name}</title>
-        <style>
-            body {{ font-family: Arial; background: #f4f4f4; padding: 20px; }}
-            .container {{ max-width: 900px; margin: auto; }}
-            .header {{ background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }}
-            .chat {{ background: white; padding: 15px; border-radius: 8px; }}
-            .msg-user {{ background: #dcf8c6; padding: 10px; border-radius: 8px; margin: 10px 0; max-width: 70%; }}
-            .msg-bot {{ background: #e9ecef; padding: 10px; border-radius: 8px; margin: 10px 0 10px auto; max-width: 70%; }}
-            .time {{ font-size: 12px; color: #666; margin-top: 5px; }}
-            .btn {{ background: #0d6efd; color: white; padding: 8px 12px; text-decoration: none; border-radius: 5px; }}
-        </style>
-    </head>
-    <body>
-    <div class="container">
-        <div class="header">
-            <h1>Conversación con {customer_name}</h1>
-            <p><strong>Teléfono:</strong> {phone}</p>
-            <a href="/whatsapp/dashboard/inbox">← Volver al Inbox</a>
-        </div>
-
-        <div class="chat">
-    """
-
-    if not messages:
-        html += "<p>No hay mensajes para este cliente.</p>"
-
-    for m in messages:
-        incoming = m["incoming_message"]
-        bot_reply = m["bot_reply"]
-        intent = m["detected_intent"]
-        created_at = m["created_at"]
-
-        if incoming:
-            html += f"""
-            <div class="msg-user">
-                <strong>Cliente:</strong><br>
-                {incoming}
-                <div class="time">{created_at}</div>
-            </div>
-            """
-
-        if bot_reply:
-            html += f"""
-            <div class="msg-bot">
-                <strong>Bot:</strong><br>
-                {bot_reply}
-                <div class="time">Intent: {intent} | {created_at}</div>
-            </div>
-            """
-
-    html += """
-        </div>
-    </div>
-    </body>
-    </html>
-    """
-
-    return html
+    finally:
+        conn.close()
 
 @app.route(
     "/whatsapp/dashboard/customers/<int:customer_id>/resolved",
