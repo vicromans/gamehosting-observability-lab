@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ page_title }}</h1>
+    <p>{{ page_description }}</p>
+</div>
+
+<div class="card">
+    {% if items %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    {% for key in items[0].keys() %}
+                        <th>{{ key }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                    <tr>
+                        {% for value in item.values() %}
+                            <td>{{ value }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Esta sección ya está conectada al menú y lista para desarrollarse.</p>
+    {% endif %}
+</div>
+{% endblock %}

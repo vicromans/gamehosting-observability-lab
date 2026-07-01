@@ -23,6 +23,19 @@ from services.appointment_service import (
     get_available_times,
     format_available_times_message,
 )
+
+from services.conversation_service import (
+    parse_time_from_message,
+    parse_date_from_message,
+    clean_customer_name,
+    format_date_for_user,
+    extract_service_from_message,
+    is_affirmative_message,
+    extract_booking_information,
+    is_booking_intent,
+    build_available_times_reply,
+    try_handle_booking_message,
+)
 from meta_errors import translate_meta_error
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -70,321 +83,6 @@ def verify_webhook():
 
 def get_db_connection():
     return pymysql.connect(**DB_CONFIG)
-
-def parse_time_from_message(message):
-    text = message.lower().strip()
-
-    if any(phrase in text for phrase in ["10", "diez"]):
-        return "10:00:00"
-
-    if any(phrase in text for phrase in ["12", "doce", "medio dia", "mediodia", "medio día", "mediodía"]):
-        return "12:00:00"
-
-    if any(phrase in text for phrase in ["15", "3", "tres", "3 pm", "3pm"]):
-        return "15:00:00"
-
-    return None
-
-def parse_date_from_message(message):
-    text = message.lower().strip()
-    today = datetime.now(ZoneInfo("America/Mexico_City")).date()
-
-    months = {
-        "enero": 1,
-        "febrero": 2,
-        "marzo": 3,
-        "abril": 4,
-        "mayo": 5,
-        "junio": 6,
-        "julio": 7,
-        "agosto": 8,
-        "septiembre": 9,
-        "setiembre": 9,
-        "octubre": 10,
-        "noviembre": 11,
-        "diciembre": 12,
-    }
-
-    # Fechas tipo 12/07, 12-07, 12/07/2026, 12-07-2026
-    numeric_match = re.search(r"\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b", text)
-    if numeric_match:
-        day = int(numeric_match.group(1))
-        month = int(numeric_match.group(2))
-        year_text = numeric_match.group(3)
-
-        if year_text:
-            year = int(year_text)
-            if year < 100:
-                year += 2000
-        else:
-            year = today.year
-
-        try:
-            candidate = datetime(year, month, day).date()
-            if not year_text and candidate < today:
-                candidate = datetime(year + 1, month, day).date()
-            return candidate
-        except ValueError:
-            pass
-
-    # Fechas tipo 15 de julio, 3 agosto, día 20 de diciembre
-    month_names = "|".join(months.keys())
-    text_match = re.search(rf"\b(?:dia|día)?\s*(\d{{1,2}})\s*(?:de\s*)?({month_names})(?:\s*(?:de\s*)?(\d{{4}}))?\b", text)
-    if text_match:
-        day = int(text_match.group(1))
-        month = months[text_match.group(2)]
-        year = int(text_match.group(3)) if text_match.group(3) else today.year
-
-        try:
-            candidate = datetime(year, month, day).date()
-            if not text_match.group(3) and candidate < today:
-                candidate = datetime(year + 1, month, day).date()
-            return candidate
-        except ValueError:
-            pass
-
-    if "hoy" in text:
-        return today
-
-    if "pasado mañana" in text or "pasado manana" in text:
-        return today + timedelta(days=2)
-
-    if "mañana" in text or "manana" in text:
-        return today + timedelta(days=1)
-
-    weekdays = {
-        "lunes": 0,
-        "martes": 1,
-        "miercoles": 2,
-        "miércoles": 2,
-        "jueves": 3,
-        "viernes": 4,
-        "sabado": 5,
-        "sábado": 5,
-        "domingo": 6,
-    }
-
-    for day_name, day_number in weekdays.items():
-        if day_name in text:
-            days_ahead = day_number - today.weekday()
-            if days_ahead <= 0:
-                days_ahead += 7
-            return today + timedelta(days=days_ahead)
-
-    return None
-
-
-def clean_customer_name(message):
-    import re
-
-    name = message.strip()
-
-    name = re.sub(r"(?i)^(perfecto|ok|okay|va|sí|si|claro|listo)[,\s]+", "", name).strip()
-    name = re.sub(r"(?i)^(ah\s*)?(a\s*)?mi nombre\s*(es)?\s*", "", name).strip()
-    name = re.sub(r"(?i)^a\s+nombre\s+de\s+", "", name).strip()
-    name = re.sub(r"(?i)^nombre\s+de\s+", "", name).strip()
-    name = re.sub(r"(?i)^me llamo\s*", "", name).strip()
-    name = re.sub(r"(?i)^soy\s*", "", name).strip()
-
-    if "," in name:
-        parts = [p.strip() for p in name.split(",") if p.strip()]
-        if parts:
-            name = parts[-1]
-
-    name = re.sub(r"(?i)\bpor favor\b", "", name).strip()
-    name = re.sub(r"(?i)\bgracias\b", "", name).strip()
-
-    return name.strip(" ,.-")
-
-
-def format_date_for_user(date_text):
-    if not date_text:
-        return "la fecha indicada"
-
-    text = str(date_text)
-
-    try:
-        date_obj = datetime.strptime(text[:10], "%Y-%m-%d").date()
-
-        weekdays = [
-            "lunes",
-            "martes",
-            "miércoles",
-            "jueves",
-            "viernes",
-            "sábado",
-            "domingo",
-        ]
-
-        return f"{weekdays[date_obj.weekday()]} {date_obj.day}/{date_obj.month}"
-    except Exception:
-        return text
-
-
-def extract_service_from_message(message):
-    text = message.lower().strip()
-
-    if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
-        return "pestañas"
-
-    if any(word in text for word in ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente"]):
-        return "uñas"
-
-    if any(word in text for word in ["alisado", "keratina", "cabello", "pelo"]):
-        return "alisado"
-
-    return None
-
-
-def is_affirmative_message(message):
-    text = message.lower().strip()
-    return any(phrase in text for phrase in [
-        "si",
-        "sí",
-        "esta bien",
-        "está bien",
-        "me parece bien",
-        "ok",
-        "okay",
-        "va",
-        "dale",
-        "confirmo",
-        "confirmar",
-        "de acuerdo",
-        "perfecto",
-        "correcto"
-    ])
-
-
-def extract_booking_information(message):
-    return {
-        "service": extract_service_from_message(message),
-        "date": parse_date_from_message(message),
-        "time": parse_time_from_message(message)
-    }
-
-
-def is_booking_intent(message):
-    text = message.lower().strip()
-    return any(word in text for word in [
-        "cita",
-        "agendar",
-        "agenda",
-        "horario",
-        "disponible",
-        "lugar",
-        "espacio",
-        "reservar",
-        "apartar"
-    ])
-
-
-def build_available_times_reply(available_times, phone_number=None, service=None, appointment_date_text=None):
-    available_text = format_available_times_message(available_times)
-
-    if not available_text:
-        return None
-
-    if len(available_times) == 1:
-        if phone_number and service and appointment_date_text:
-            conversation_state[phone_number] = {
-                "step": "waiting_time_confirmation",
-                "service": service,
-                "date_text": format_date_for_user(appointment_date_text),
-                "appointment_date": appointment_date_text,
-                "suggested_time": available_times[0]
-            }
-        return f"Solo tengo disponible {available_text}. ¿Te parece bien?"
-
-    return f"Tengo disponible {available_text}. ¿Qué horario prefieres?"
-
-
-def try_handle_booking_message(message, phone_number, state):
-    booking = extract_booking_information(message)
-
-    service = booking.get("service") or state.get("service")
-    appointment_date = booking.get("date") or state.get("appointment_date")
-    selected_time = booking.get("time")
-
-    if not selected_time and state.get("step") == "waiting_time_confirmation" and is_affirmative_message(message):
-        selected_time = state.get("suggested_time")
-
-    has_booking_data = booking.get("service") or booking.get("date") or booking.get("time")
-    active_booking_flow = state.get("step") in ["waiting_service", "waiting_date", "waiting_time", "waiting_time_confirmation"]
-    booking_intent = is_booking_intent(message)
-
-    if not has_booking_data and not active_booking_flow and not booking_intent:
-        return None
-
-    if booking.get("service") and not booking.get("date") and not booking.get("time") and not active_booking_flow and not booking_intent:
-        return None
-
-    if not service:
-        conversation_state[phone_number] = {"step": "waiting_service"}
-        return "Claro 😊 Te ayudo a agendar. ¿Qué servicio necesitas: pestañas, uñas o alisado?"
-
-    if not appointment_date:
-        conversation_state[phone_number] = {
-            "step": "waiting_date",
-            "service": service
-        }
-        return f"Perfecto 😊 ¿Qué día te gustaría agendar tu cita de {service}?"
-
-    appointment_date_text = str(appointment_date)
-
-    if not selected_time:
-        available_times = get_available_times(appointment_date_text, service)
-        reply = build_available_times_reply(available_times, phone_number, service, appointment_date_text)
-
-        if not reply:
-            conversation_state[phone_number] = {
-                "step": "waiting_date",
-                "service": service,
-                "retry_reason": "no_availability"
-            }
-            return "Lo siento 😔 Ya no tengo horarios disponibles para ese día. ¿Qué otro día te gustaría intentar?"
-
-        if len(available_times) == 1:
-            return f"Perfecto 😊 {reply}"
-
-        conversation_state[phone_number] = {
-            "step": "waiting_time",
-            "service": service,
-            "date_text": format_date_for_user(appointment_date_text),
-            "appointment_date": appointment_date_text
-        }
-
-        return f"Perfecto 😊 {reply}"
-
-    if not is_time_slot_available(appointment_date_text, selected_time, service):
-        available_times = get_available_times(appointment_date_text, service)
-        available_text = format_available_times_message(available_times)
-
-        conversation_state[phone_number] = {
-            "step": "waiting_time",
-            "service": service,
-            "date_text": format_date_for_user(appointment_date_text),
-            "appointment_date": appointment_date_text
-        }
-
-        if not available_text:
-            return "Lo siento 😔 Ese día ya no tiene horarios disponibles. ¿Quieres intentar con otro día?"
-
-        if len(available_times) == 1:
-            return f"Ese horario ya no está disponible 😔 Solo me queda {available_text}. ¿Te funciona ese horario?"
-
-        return f"Ese horario ya no está disponible 😔 Tengo disponible {available_text}. ¿Cuál prefieres?"
-
-    conversation_state[phone_number] = {
-        "step": "waiting_name",
-        "service": service,
-        "date_text": format_date_for_user(appointment_date_text),
-        "appointment_date": appointment_date_text,
-        "appointment_time": selected_time
-    }
-
-    return "Perfecto 😊 Ese horario está disponible. ¿A nombre de quién agendo la cita?"
-
 
 def build_reply(message, phone_number):
     text = message.lower().strip()
@@ -452,7 +150,12 @@ def build_reply(message, phone_number):
     if any(word in text for word in ["bye", "adios", "adiós", "hasta luego", "nos vemos", "chao", "ciao"]):
         return "¡Hasta luego! 😊 Gracias por contactar a Aura Beauty. Te esperamos pronto."
 
-    booking_reply = try_handle_booking_message(message, phone_number, state)
+    booking_reply = try_handle_booking_message(
+        message,
+        phone_number,
+        state,
+        conversation_state
+    )
     if booking_reply:
         return booking_reply
 
@@ -1789,6 +1492,107 @@ def customer_messages_partial(customer_id):
     finally:
         conn.close()
 
+
+
+@app.get("/whatsapp/dashboard/agenda")
+def dashboard_agenda():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
+    business = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT *
+        FROM appointments
+        WHERE business_id = %s
+        ORDER BY appointment_date ASC, appointment_time ASC
+        LIMIT 100
+    """, (1,))
+    appointments = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="agenda",
+        page_title="Agenda",
+        page_description="Vista general de citas registradas.",
+        items=appointments
+    )
+
+
+@app.get("/whatsapp/dashboard/services")
+def dashboard_services():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
+    business = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT *
+        FROM services
+        WHERE business_id = %s
+        ORDER BY service_name ASC
+    """, (1,))
+    items = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="services",
+        page_title="Servicios",
+        page_description="Servicios configurados para Aura Beauty.",
+        items=items
+    )
+
+
+@app.get("/whatsapp/dashboard/reports")
+def dashboard_reports():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
+    business = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="reports",
+        page_title="Reportes",
+        page_description="Próximamente: clientes nuevos, servicios más vendidos e ingresos.",
+        items=[]
+    )
+
+
+@app.get("/whatsapp/dashboard/settings")
+def dashboard_settings():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
+    business = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="settings",
+        page_title="Configuración",
+        page_description="Próximamente: horarios, mensajes, anticipos y datos del negocio.",
+        items=[]
+    )
 
 
 if __name__ == "__main__":
