@@ -36,6 +36,7 @@ from services.conversation_service import (
     build_available_times_reply,
     try_handle_booking_message,
 )
+
 from meta_errors import translate_meta_error
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -45,9 +46,11 @@ import re
 
 from database.connection import get_db_connection
 from routes.dashboard_routes import dashboard_bp
+from routes.public_routes import public_bp
 
 app = Flask(__name__)
 app.register_blueprint(dashboard_bp)
+app.register_blueprint(public_bp)
 
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
@@ -464,14 +467,6 @@ def receive_message():
         print("ERROR processing webhook:", str(e), flush=True)
         return jsonify({"status": "error", "error": str(e)}), 200
 
-@app.get("/")
-@app.get("/whatsapp/")
-def index():
-    return jsonify({
-        "service": "VeldrikLabs WhatsApp Bot",
-        "status": "running"
-    })
-
 def ensure_customer(phone_number):
     connection = get_db_connection()
 
@@ -653,10 +648,6 @@ def appointment_actions(a):
         return "❌ Cancelada"
 
     return status
-
-@app.get("/whatsapp/static/<path:filename>")
-def whatsapp_static(filename):
-    return send_from_directory("static", filename)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5100)
