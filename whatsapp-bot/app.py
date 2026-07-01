@@ -658,40 +658,6 @@ def appointment_actions(a):
 def whatsapp_static(filename):
     return send_from_directory("static", filename)
 
-@app.get("/whatsapp/dashboard/clients")
-def dashboard_clients():
-    connection = get_db_connection()
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM businesses WHERE id = 1")
-            business = cursor.fetchone()
-
-            cursor.execute("""
-                SELECT
-                    id,
-                    phone_number,
-                    customer_name,
-                    allergy_notes,
-                    accepted_policies,
-                    human_required,
-                    last_contact
-                FROM customers
-                WHERE business_id = 1
-                ORDER BY last_contact DESC
-            """)
-            customers = cursor.fetchall()
-
-        return render_template(
-            "clients.html",
-            business=business,
-            customers=customers,
-            active_page="clients"
-        )
-
-    finally:
-        connection.close()
-
 @app.route("/dashboard/appointments/<int:appointment_id>/<action>", methods=["POST"])
 @app.route("/whatsapp/dashboard/appointments/<int:appointment_id>/<action>", methods=["POST"])
 def update_appointment_status(appointment_id, action):
