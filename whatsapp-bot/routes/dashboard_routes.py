@@ -443,3 +443,130 @@ def customer_messages_partial(customer_id):
 
     finally:
         conn.close()
+
+@dashboard_bp.get("/whatsapp/dashboard/agenda")
+def dashboard_agenda():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
+    business = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT *
+        FROM appointments
+        WHERE business_id = %s
+        ORDER BY appointment_date ASC, appointment_time ASC
+        LIMIT 100
+    """, (1,))
+    appointments = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="agenda",
+        page_title="Agenda",
+        page_description="Vista general de citas registradas.",
+        items=appointments
+    )
+
+@dashboard_bp.get("/whatsapp/dashboard/services")
+def dashboard_services():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
+    business = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT *
+        FROM services
+        WHERE business_id = %s
+        ORDER BY service_name ASC
+    """, (1,))
+    items = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="services",
+        page_title="Servicios",
+        page_description="Servicios configurados para Aura Beauty.",
+        items=items
+    )
+
+@dashboard_bp.get("/whatsapp/dashboard/reports")
+def dashboard_reports():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
+    business = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="reports",
+        page_title="Reportes",
+        page_description="Próximamente: clientes nuevos, servicios más vendidos e ingresos.",
+        items=[]
+    )
+
+@dashboard_bp.get("/whatsapp/dashboard/settings")
+def dashboard_settings():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
+    business = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="settings",
+        page_title="Configuración",
+        page_description="Próximamente: horarios, mensajes, anticipos y datos del negocio.",
+        items=[]
+    )
+
+@dashboard_bp.route("/dashboard/appointments/<int:appointment_id>/<action>", methods=["POST"])
+@dashboard_bp.route("/whatsapp/dashboard/appointments/<int:appointment_id>/<action>", methods=["POST"])
+def update_appointment_status(appointment_id, action):
+    valid_actions = {
+        "confirm": "confirmed",
+        "cancel": "cancelled",
+        "complete": "completed"
+    }
+
+    if action not in valid_actions:
+        return "Acción inválida", 400
+
+    new_status = valid_actions[action]
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE appointments
+        SET status = %s
+        WHERE id = %s AND business_id = 1
+    """, (new_status, appointment_id))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return redirect("/whatsapp/dashboard")
+
