@@ -1,6 +1,15 @@
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, jsonify, render_template, request, redirect
 
 from database.connection import get_db_connection
+from services.whatsapp_service import (
+    send_whatsapp_message,
+    send_whatsapp_template_message,
+)
+from meta_errors import translate_meta_error
+import os
+
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -199,3 +208,238 @@ def dashboard_clients():
 
     finally:
         connection.close()
+
+
+@dashboard_bp.route(
+    "/whatsapp/dashboard/customers/<int:customer_id>/resolved",
+    methods=["POST"]
+)
+def resolve_customer(customer_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE customers
+        SET human_required = 0
+        WHERE id = %s
+    """, (customer_id,))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return redirect("/whatsapp/dashboard")
+
+
+@dashboard_bp.route("/whatsapp/dashboard/customer/<int:customer_id>", methods=["GET", "POST"])
+def customer_conversation(customer_id):
+    conn = get_db_connection()
+
+    try:
+        cursor = conn.cursor()
+
+        if request.method == "POST":
+            manual_reply = request.form.get("reply", "").strip()
+
+            cursor.execute("""
+                SELECT phone_number
+                FROM customers
+                WHERE id = %s
+                LIMIT 1
+            """, (customer_id,))
+
+            customer_phone_row = cursor.fetchone()
+
+            if manual_reply and customer_phone_row:
+                phone_number = customer_phone_row["phone_number"]
+
+                cursor.execute("""
+                    INSERT INTO whatsapp_messages
+                        (business_id, phone_number, incoming_message, bot_reply, detected_intent)
+                    VALUES
+                        (1, %s, NULL, %s, 'human_reply')
+                """, (phone_number, manual_reply))
+
+                send_whatsapp_message(
+                    phone_number,
+                    manual_reply,
+                    WHATSAPP_PHONE_NUMBER_ID,
+                    WHATSAPP_TOKEN
+                )
+
+                conn.commit()
+
+            return redirect(f"/whatsapp/dashboard/customer/{customer_id}#bottom")
+
+        cursor.execute("""
+            SELECT
+                id,
+                customer_name,
+                phone_number
+            FROM customers
+            WHERE id = %s
+        """, (customer_id,))
+
+        customer = cursor.fetchone()
+
+        cursor.execute("""
+            SELECT
+                incoming_message, bot_reply,
+                detected_intent,
+                created_at
+            FROM whatsapp_messages
+            WHERE business_id = 1
+              AND phone_number = %s
+            ORDER BY created_at ASC
+        """, (customer["phone_number"],))
+
+        messages = cursor.fetchall()
+
+        cursor.execute("SELECT * FROM businesses WHERE id = 1")
+        business = cursor.fetchone()
+
+        return render_template(
+            "customer_conversation.html",
+            business=business,
+            customer=customer,
+            messages=messages,
+            active_page="clients"
+        )
+
+    finally:
+        conn.close()
+
+
+@dashboard_bp.route("/whatsapp/dashboard/customer/<int:customer_id>/send-template", methods=["POST"])
+def send_customer_template(customer_id):
+    template_name = request.form.get("template_name", "").strip()
+    customer_name = request.form.get("customer_name", "").strip()
+    topic = request.form.get("topic", "").strip()
+
+    conn = get_db_connection()
+
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT phone_number
+            FROM customers
+            WHERE id = %s
+            LIMIT 1
+        """, (customer_id,))
+
+        customer = cursor.fetchone()
+
+        if not customer:
+            return redirect("/whatsapp/dashboard/clients")
+
+        phone_number = customer["phone_number"]
+
+        response = send_whatsapp_template_message(
+            phone_number,
+            template_name,
+            customer_name,
+            topic,
+            WHATSAPP_PHONE_NUMBER_ID,
+            WHATSAPP_TOKEN
+        )
+
+        if response.status_code in (200, 201):
+            message_log = f"[Plantilla enviada] {template_name} para {customer_name}: {topic}"
+            intent = "template_sent"
+        else:
+            friendly_error = translate_meta_error(response.text)
+
+            message_log = (
+                f"⚠️ {friendly_error['title']}\n"
+                f"{friendly_error['message']}\n\n"
+                f"Detalles técnicos: {friendly_error['technical']}"
+            )
+
+            intent = "template_error"
+
+        cursor.execute("""
+            INSERT INTO whatsapp_messages
+                (business_id, phone_number, incoming_message, bot_reply, detected_intent)
+            VALUES
+                (1, %s, NULL, %s, %s)
+        """, (
+            phone_number,
+            message_log,
+            intent
+        ))
+
+        conn.commit()
+
+        return redirect(f"/whatsapp/dashboard/customer/{customer_id}#bottom")
+
+    finally:
+        conn.close()
+
+
+@dashboard_bp.route("/whatsapp/dashboard/customer/<int:customer_id>/messages")
+def customer_messages_partial(customer_id):
+    conn = get_db_connection()
+
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                phone_number
+            FROM customers
+            WHERE id = %s
+        """, (customer_id,))
+
+        customer = cursor.fetchone()
+
+        if not customer:
+            return ""
+
+        cursor.execute("""
+            SELECT
+                incoming_message,
+                bot_reply,
+                detected_intent,
+                created_at
+            FROM whatsapp_messages
+            WHERE business_id = 1
+              AND phone_number = %s
+            ORDER BY created_at ASC
+        """, (customer["phone_number"],))
+
+        messages = cursor.fetchall()
+
+        html = ""
+
+        for m in messages:
+            created_at = m["created_at"]
+            incoming = m["incoming_message"]
+            bot_reply = m["bot_reply"]
+            intent = m["detected_intent"]
+
+            if incoming:
+                html += f"""
+                <div class="message customer">
+                    <strong>{created_at}</strong><br>
+                    <strong>Cliente:</strong> {incoming}<br>
+                </div>
+                """
+
+            if bot_reply:
+                label = "Bot"
+
+                if intent == "human_reply":
+                    label = "Asesora"
+
+                html += f"""
+                <div class="message bot">
+                    <strong>{created_at}</strong><br>
+                    <strong>{label}:</strong> {bot_reply}
+                </div>
+                """
+
+        return html
+
+    finally:
+        conn.close()
