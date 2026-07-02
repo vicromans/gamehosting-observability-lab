@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, send_from_directory, request, send_from_directory
 from database.connection import get_db_connection
+from services.conversation.engine import build_reply
 
 public_bp = Blueprint("public", __name__)
 
@@ -55,41 +56,12 @@ def save_message(phone_number, incoming_message, bot_reply_text, detected_intent
     finally:
         connection.close()
 
-def bot_reply(text):
-    text = text.lower()
-
-    if "anticipo" in text or "cita" in text or "agendar" in text:
-        return "Para reservar cita se requiere un anticipo de $150 MXN. Por favor indícanos qué servicio deseas, día y horario preferido."
-
-    if "hola" in text or "buenas" in text:
-        return "Hola ✨ Bienvenida..."
-
-    if "pestaña" in text:
-        return "El servicio de pestañas tiene un precio regular de $500 MXN. Promoción actual: $350 MXN. Duración aproximada: 2 horas."
-
-    if "uña" in text or "uñas" in text or "gel" in text or "gelish" in text or "semipermanente" in text:
-        return "Para cotizar uñas, por favor envía una foto del diseño que te gustaría realizarte. El precio depende del diseño."
-
-    if "alisado" in text or "cabello" in text:
-        return "Para cotizar alisado progresivo, por favor envía una foto de tu cabello y comenta el largo aproximado. La duración aproximada es de 4 horas."
-
-    if "horario" in text:
-        return "Nuestro horario es de 9:00 AM a 12:00 PM y de 3:00 PM a 6:00 PM."
-
-    if "pestaña" in text or "pestana" in text or "pestañas" in text or "pestanas" in text:
-        return "El servicio de pestañas tiene un precio regular de $500 MXN. Promoción actual: $350 MXN. Duración aproximada: 2 horas."
-
-    if "uña" in text or "unas" in text or "uñas" in text or "gelish" in text:
-        return "Para cotizar uñas, por favor envía una foto del diseño que te gustaría realizarte. El precio depende del diseño."
-
-    return "Gracias por escribirnos ✨ Para ayudarte mejor, dime si te interesa: uñas, pestañas o alisado progresivo."
-
 @public_bp.get("/test")
 @public_bp.get("/whatsapp/test")
 def test_bot():
     msg = request.args.get("msg", "")
     phone = request.args.get("phone", "test-user")
-    reply = bot_reply(msg)
+    reply = build_reply(msg, phone)
 
     intent = "unknown"
     lower_msg = msg.lower()
