@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 COPY meta_errors.py .
+COPY routes ./routes
 COPY services ./services
 COPY database ./database
 COPY templates ./templates
