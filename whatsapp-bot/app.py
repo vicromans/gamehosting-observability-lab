@@ -37,6 +37,11 @@ from services.conversation_service import (
     try_handle_booking_message,
 )
 
+from services.conversation.human import (
+    mark_human_required,
+    clear_human_required,
+)
+
 from meta_errors import translate_meta_error
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -47,6 +52,7 @@ import re
 from database.connection import get_db_connection
 from routes.dashboard_routes import dashboard_bp
 from routes.public_routes import public_bp
+from services.conversation.state import conversation_state
 
 app = Flask(__name__)
 app.register_blueprint(dashboard_bp)
@@ -55,8 +61,6 @@ app.register_blueprint(public_bp)
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "veldriklabs_verify_2026")
-
-conversation_state = {}
 
 VERIFY_TOKEN = "veldriklabs_whatsapp_verify"
 
@@ -466,38 +470,6 @@ def receive_message():
     except Exception as e:
         print("ERROR processing webhook:", str(e), flush=True)
         return jsonify({"status": "error", "error": str(e)}), 200
-
-def mark_human_required(phone_number):
-    connection = get_db_connection()
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                UPDATE customers
-                SET human_required = TRUE,
-                    last_contact = CURRENT_TIMESTAMP
-                WHERE phone_number = %s
-            """, (phone_number,))
-
-        connection.commit()
-    finally:
-        connection.close()
-
-def clear_human_required(phone_number):
-    connection = get_db_connection()
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                UPDATE customers
-                SET human_required = FALSE,
-                    last_contact = CURRENT_TIMESTAMP
-                WHERE phone_number = %s
-            """, (phone_number,))
-
-        connection.commit()
-    finally:
-        connection.close()
 
 def appointment_actions(a):
     appointment_id = a["id"]
