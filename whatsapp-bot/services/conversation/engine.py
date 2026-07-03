@@ -102,3 +102,68 @@ def build_reply(message, phone_number):
         return "Te comparto precios base: pestañas $500, uñas según diseño y alisado según largo del cabello. ¿Sobre cuál servicio quieres más información?"
 
     return "Perdón, no entendí bien 🙏 Puedo ayudarte con citas, precios, pestañas, uñas o alisado."
+
+
+def build_replies(message, phone_number):
+    text = message.lower().strip()
+
+    greeting_words = [
+        "hola", "buenas", "buenos dias", "buenos días",
+        "buenas tardes", "buenas noches", "buen dia",
+        "que tal", "qué tal", "que onda", "qué onda", "hi"
+    ]
+
+    has_greeting = any(word in text for word in greeting_words)
+
+    has_nails = any(word in text for word in [
+        "uña", "uñas", "nail", "nails", "gel", "gelish",
+        "semipermanente", "acrilico", "acrílico", "esculturales"
+    ])
+
+    has_lashes = any(word in text for word in [
+        "pestaña", "pestañas", "lash", "lashes"
+    ])
+
+    has_hair = any(word in text for word in [
+        "alisado", "cabello", "pelo", "keratina"
+    ])
+
+    has_booking = any(word in text for word in [
+        "cita", "agendar", "agenda", "horario", "disponible"
+    ])
+
+    if has_greeting and (has_nails or has_lashes or has_hair or has_booking):
+        replies = [
+            "¡Hola! 😊 Bienvenida a Aura Beauty. Será un gusto atenderte."
+        ]
+
+        if has_nails:
+            replies.append(
+                "Claro 💅 Con gusto te doy información de uñas. "
+                "Tenemos gel semipermanente, acrílico y esculturales. "
+                "El precio depende del largo y diseño. Para agendar se requiere anticipo."
+            )
+            replies.append("¿Qué tipo de uñas te interesa: gel, acrílico o esculturales?")
+
+        elif has_lashes:
+            replies.append(
+                "Claro ✨ Para pestañas tenemos promoción en $350. "
+                "Para agendar se requiere anticipo de $150."
+            )
+            replies.append("¿Te gustaría agendar una cita para pestañas?")
+
+        elif has_hair:
+            replies.append(
+                "Claro 😊 El alisado progresivo depende del largo del cabello "
+                "y dura aproximadamente 4 horas."
+            )
+            replies.append("¿Tu cabello es corto, medio o largo?")
+
+        elif has_booking:
+            conversation_state[phone_number] = {"step": "waiting_service"}
+            replies.append("Claro 😊 Te ayudo a agendar.")
+            replies.append("¿Qué servicio necesitas: pestañas, uñas o alisado?")
+
+        return replies
+
+    return [build_reply(message, phone_number)]

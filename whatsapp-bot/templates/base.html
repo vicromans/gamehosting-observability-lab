@@ -11,6 +11,10 @@
 </head>
 
 <body>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button">
+        ☰ {{ business.business_name }}
+    </button>
+
     <div class="layout">
 
         {% include "components/sidebar.html" %}
@@ -21,6 +25,8 @@
         </main>
 
     </div>
+
+    <script src="/whatsapp/static/js/mobile-menu.js"></script>
 
     {% block scripts %}
     {% endblock %}

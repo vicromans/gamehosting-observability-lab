@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<div class="agenda-days">
+    {% if agenda_days %}
+        {% for day in agenda_days %}
+            <div class="card agenda-day-card">
+                <div class="agenda-day-header">
+                    <div>
+                        <h2>{{ day.appointment_date }}</h2>
+                        <p>{{ day.total }} cita(s)</p>
+                    </div>
+
+                    <a class="btn btn-primary" href="/whatsapp/dashboard/agenda/day/{{ day.appointment_date }}">
+                        Ver día
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="card">
+            <p>No hay citas registradas.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -3,7 +3,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from database.connection import get_db_connection
-from services.conversation.engine import build_reply
+from services.conversation.engine import build_replies
 from services.conversation.human import mark_human_required
 from services.whatsapp_service import send_whatsapp_message
 
@@ -56,7 +56,8 @@ def receive_message():
         customer_name = contact.get("profile", {}).get("name")
         incoming_message = message.get("text", {}).get("body", "")
 
-        reply = build_reply(incoming_message, phone_number)
+        replies = build_replies(incoming_message, phone_number)
+        reply = "\n\n---\n\n".join([r for r in replies if r])
 
         if reply and "canalizar" in reply:
             mark_human_required(phone_number)
@@ -104,13 +105,21 @@ def receive_message():
 
         print(f"Saved WhatsApp message from {phone_number}: {incoming_message}", flush=True)
 
-        if reply:
-            send_whatsapp_message(
-                phone_number,
-                reply,
-                WHATSAPP_PHONE_NUMBER_ID,
-                WHATSAPP_TOKEN
-            )
+        if replies:
+            import time
+
+            for outbound_message in replies:
+                if not outbound_message:
+                    continue
+
+                send_whatsapp_message(
+                    phone_number,
+                    outbound_message,
+                    WHATSAPP_PHONE_NUMBER_ID,
+                    WHATSAPP_TOKEN
+                )
+
+                time.sleep(0.7)
 
         return jsonify({
             "status": "saved",

@@ -453,25 +453,69 @@ def dashboard_agenda():
     business = cursor.fetchone()
 
     cursor.execute("""
-        SELECT *
+        SELECT
+            appointment_date,
+            COUNT(*) AS total
         FROM appointments
         WHERE business_id = %s
-        ORDER BY appointment_date ASC, appointment_time ASC
-        LIMIT 100
+        GROUP BY appointment_date
+        ORDER BY appointment_date ASC
+        LIMIT 60
     """, (1,))
+    agenda_days = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "agenda.html",
+        business=business,
+        active_page="agenda",
+        page_title="Agenda",
+        page_subtitle="Citas agrupadas por día.",
+        agenda_days=agenda_days
+    )
+
+
+@dashboard_bp.get("/whatsapp/dashboard/agenda/day/<appointment_date>")
+def dashboard_agenda_day(appointment_date):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
+    business = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT
+            id,
+            customer_name,
+            customer_phone,
+            service_name,
+            appointment_date,
+            appointment_time,
+            status,
+            deposit_required,
+            deposit_paid,
+            notes
+        FROM appointments
+        WHERE business_id = %s
+          AND appointment_date = %s
+        ORDER BY appointment_time ASC
+    """, (1, appointment_date))
     appointments = cursor.fetchall()
 
     cursor.close()
     conn.close()
 
     return render_template(
-        "simple_page.html",
+        "agenda_day.html",
         business=business,
         active_page="agenda",
         page_title="Agenda",
-        page_description="Vista general de citas registradas.",
-        items=appointments
+        page_subtitle=f"Citas del día {appointment_date}",
+        appointments=appointments
     )
+
 
 @dashboard_bp.get("/whatsapp/dashboard/services")
 def dashboard_services():

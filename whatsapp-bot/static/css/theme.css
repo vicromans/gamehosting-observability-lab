@@ -246,3 +246,125 @@
     background: #e5e7eb;
     color: #374151;
 }
+
+/* Mobile first improvements */
+.mobile-menu-toggle {
+    display: none;
+}
+
+@media (max-width: 800px) {
+    body {
+        font-size: 16px;
+    }
+
+    .mobile-menu-toggle {
+        display: block;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        width: 100%;
+        border: none;
+        background: var(--color-sidebar);
+        color: white;
+        padding: 14px 18px;
+        font-size: 18px;
+        font-weight: 700;
+        text-align: left;
+    }
+
+    .layout {
+        display: block;
+        min-height: auto;
+    }
+
+    .sidebar {
+        display: none;
+        width: auto;
+        padding: 14px;
+    }
+
+    .sidebar.mobile-open {
+        display: block;
+    }
+
+    .brand {
+        font-size: 20px;
+        margin-bottom: 4px;
+    }
+
+    .brand-subtitle {
+        margin-bottom: 14px;
+    }
+
+    .menu {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .menu a {
+        margin-bottom: 0;
+        padding: 12px;
+        font-size: 15px;
+    }
+
+    .main {
+        padding: 18px;
+    }
+
+    .topbar h1 {
+        font-size: 34px;
+        line-height: 1.05;
+    }
+
+    .topbar-actions {
+        width: 100%;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .business-pill {
+        font-size: 14px;
+    }
+
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    th, td {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .btn {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+}
+
+/* Fix mobile menu behavior while scrolling */
+@media (max-width: 800px) {
+    .mobile-menu-toggle {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+    }
+
+    body {
+        padding-top: 56px;
+    }
+
+    .sidebar.mobile-open {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        right: 0;
+        z-index: 999;
+        max-height: calc(100vh - 56px);
+        overflow-y: auto;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    }
+}

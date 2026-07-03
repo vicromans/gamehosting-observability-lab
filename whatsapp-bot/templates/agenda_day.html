@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<div class="card">
+    <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda">← Volver a Agenda</a>
+</div>
+
+<div class="agenda-appointments">
+    {% if appointments %}
+        {% for a in appointments %}
+            <div class="card appointment-card">
+                <div class="appointment-time">{{ a.appointment_time }}</div>
+                <div><strong>Cliente:</strong> {{ a.customer_name or "Sin nombre" }}</div>
+                <div><strong>Teléfono:</strong> {{ a.customer_phone }}</div>
+                <div><strong>Servicio:</strong> {{ a.service_name }}</div>
+                <div><strong>Estado:</strong> {{ a.status }}</div>
+                <div><strong>Anticipo:</strong> ${{ a.deposit_required }}</div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="card">
+            <p>No hay citas para este día.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
