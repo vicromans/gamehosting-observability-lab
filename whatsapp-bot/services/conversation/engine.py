@@ -5,6 +5,7 @@ from services.conversation.human import (
 )
 from services.conversation.booking import handle_booking_flow
 from services.catalog.catalog import send_catalog_item
+from services.catalog.detector import detect_catalog_item
 from services.conversation.hair import handle_hair_flow
 
 
@@ -90,14 +91,15 @@ def build_reply(message, phone_number):
         conversation_state[phone_number] = {"step": "waiting_service"}
         return "Claro 😊 Te ayudo a agendar. ¿Qué servicio necesitas: pestañas, uñas o alisado?"
 
-    if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
-        send_catalog_item(phone_number, "pestañas")
-        conversation_state[phone_number] = {"step": "confirm_booking", "service": "pestañas"}
-        return "¿Quieres agendar una cita para pestañas?"
+    from services.catalog.catalog import get_catalog_item
 
-    if any(word in text for word in ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente"]):
-        conversation_state[phone_number] = {"step": "confirm_booking", "service": "uñas"}
-        return "Para uñas tenemos Gelish/Gel desde $120 💅 y uñas acrílicas desde $250. Los diseños elaborados pueden variar según decoración y detalle. Para agendar se requiere anticipo de $150. ¿Quieres agendar una cita?"
+    catalog_item = detect_catalog_item(text)
+    if catalog_item:
+        send_catalog_item(phone_number, catalog_item)
+        conversation_state[phone_number] = {"step": "confirm_booking", "service": catalog_item}
+        item = get_catalog_item(catalog_item)
+        title = item.get("title", catalog_item)
+        return f"¿Quieres agendar una cita para {title}?"
 
     if any(word in text for word in ["alisado", "cabello", "pelo", "keratina"]):
         return "El alisado progresivo depende del largo del cabello y dura aproximadamente 4 horas. ¿Tu cabello es corto, medio o largo?"
