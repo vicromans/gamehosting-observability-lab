@@ -4,6 +4,7 @@ from services.conversation.human import (
     clear_human_required,
 )
 from services.conversation.booking import handle_booking_flow
+from services.catalog.catalog import send_catalog_item
 from services.conversation.hair import handle_hair_flow
 
 
@@ -90,18 +91,19 @@ def build_reply(message, phone_number):
         return "Claro 😊 Te ayudo a agendar. ¿Qué servicio necesitas: pestañas, uñas o alisado?"
 
     if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
+        send_catalog_item(phone_number, "pestañas")
         conversation_state[phone_number] = {"step": "confirm_booking", "service": "pestañas"}
-        return "Para pestañas tenemos promoción en $350 ✨ Para agendar se requiere anticipo de $150. ¿Quieres agendar una cita?"
+        return "¿Quieres agendar una cita para pestañas?"
 
     if any(word in text for word in ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente"]):
         conversation_state[phone_number] = {"step": "confirm_booking", "service": "uñas"}
-        return "Para uñas tenemos opciones desde $125 en gel semipermanente. Acrílico desde $250 y esculturales desde $300 según largo. Para agendar se requiere anticipo de $150 💅 ¿Quieres agendar una cita?"
+        return "Para uñas tenemos Gelish/Gel desde $120 💅 y uñas acrílicas desde $250. Los diseños elaborados pueden variar según decoración y detalle. Para agendar se requiere anticipo de $150. ¿Quieres agendar una cita?"
 
     if any(word in text for word in ["alisado", "cabello", "pelo", "keratina"]):
         return "El alisado progresivo depende del largo del cabello y dura aproximadamente 4 horas. ¿Tu cabello es corto, medio o largo?"
 
     if any(word in text for word in ["precio", "costo", "cuanto", "cuánto", "$"]):
-        return "Te comparto precios base: pestañas $500, uñas según diseño y alisado según largo del cabello. ¿Sobre cuál servicio quieres más información?"
+        return "Te comparto precios base: pestañas precio regular $500, por promoción vigente $350; Gelish/Gel desde $120; uñas acrílicas desde $250; y alisado según largo del cabello. ¿Sobre cuál servicio quieres más información?"
 
     return "Perdón, no entendí bien 🙏 Puedo ayudarte con citas, precios, pestañas, uñas o alisado."
 
@@ -119,7 +121,7 @@ def build_replies(message, phone_number):
 
     has_nails = any(word in text for word in [
         "uña", "uñas", "nail", "nails", "gel", "gelish",
-        "semipermanente", "acrilico", "acrílico", "esculturales"
+        "semipermanente", "acrilico", "acrílico"
     ])
 
     has_lashes = any(word in text for word in [
@@ -142,16 +144,14 @@ def build_replies(message, phone_number):
         if has_nails:
             replies.append(
                 "Claro 💅 Con gusto te doy información de uñas. "
-                "Tenemos gel semipermanente, acrílico y esculturales. "
-                "El precio depende del largo y diseño. Para agendar se requiere anticipo."
+                "Tenemos Gelish/Gel desde $120 y uñas acrílicas desde $250. "
+                "Los diseños elaborados pueden variar según decoración y detalle. Para agendar se requiere anticipo."
             )
-            replies.append("¿Qué tipo de uñas te interesa: gel, acrílico o esculturales?")
+            replies.append("¿Qué tipo de uñas te interesa: Gelish/Gel o acrílicas?")
 
         elif has_lashes:
-            replies.append(
-                "Claro ✨ Para pestañas tenemos promoción en $350. "
-                "Para agendar se requiere anticipo de $150."
-            )
+            send_catalog_item(phone_number, "pestañas")
+            replies.append("Claro ✨ Te comparto la promoción vigente de pestañas.")
             replies.append("¿Te gustaría agendar una cita para pestañas?")
 
         elif has_hair:

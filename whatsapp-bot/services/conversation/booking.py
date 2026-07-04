@@ -63,7 +63,7 @@ def handle_booking_flow(message, phone_number, state):
             }
             return "Perfecto ✨ ¿Qué día te gustaría agendar tu cita de pestañas?"
 
-        if any(word in text for word in ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente"]):
+        if any(word in text for word in ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente", "acrilico", "acrílico"]):
             conversation_state[phone_number] = {
                 "step": "waiting_date",
                 "service": "uñas"
