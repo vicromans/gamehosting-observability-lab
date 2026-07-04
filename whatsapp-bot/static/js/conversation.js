@@ -25,10 +25,6 @@ function setupEnterToSend() {
     });
 }
 
-window.addEventListener("load", function() {
-    scrollChatToBottom();
-    setupEnterToSend();
-});
 function setupTemplatePanel() {
     const openButton = document.getElementById("open-template-panel");
     const closeButton = document.getElementById("close-template-panel");
@@ -47,6 +43,49 @@ function setupTemplatePanel() {
     });
 }
 
+function setupChatAutoRefresh() {
+    const chat = document.getElementById("chat-container");
+
+    if (!chat) {
+        return;
+    }
+
+    const path = window.location.pathname;
+    const messagesUrl = path.endsWith("/") ? path + "messages" : path + "/messages";
+
+    async function refreshMessages() {
+        try {
+            const currentScrollBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight;
+            const shouldStickToBottom = currentScrollBottom < 80;
+
+            const response = await fetch(messagesUrl, {
+                cache: "no-store"
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const html = await response.text();
+
+            if (html && html !== chat.innerHTML) {
+                chat.innerHTML = html;
+
+                if (shouldStickToBottom) {
+                    scrollChatToBottom();
+                }
+            }
+        } catch (error) {
+            console.log("Chat refresh error:", error);
+        }
+    }
+
+    setInterval(refreshMessages, 2000);
+}
+
 window.addEventListener("load", function() {
+    scrollChatToBottom();
+    setupEnterToSend();
     setupTemplatePanel();
+    setupChatAutoRefresh();
 });
