@@ -3,7 +3,7 @@ import os
 from services.whatsapp_service import send_whatsapp_message
 
 
-OWNER_PHONE_NUMBER = "5215587332824"
+OWNER_PHONE_NUMBER = os.getenv("OWNER_PHONE_NUMBER", "16174805470")
 DASHBOARD_INBOX_URL = "https://api.veldriklabs.com/whatsapp/dashboard/inbox"
 
 
