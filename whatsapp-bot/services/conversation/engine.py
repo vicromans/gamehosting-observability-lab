@@ -2,6 +2,7 @@ from services.conversation.state import conversation_state
 from services.conversation.human import (
     clear_human_required,
     handle_human_request,
+    is_human_required,
 )
 from services.conversation.booking import handle_booking_flow
 from services.catalog.catalog import send_catalog_item
@@ -28,10 +29,13 @@ def build_reply(message, phone_number):
         "cita"
     ]
 
-    if state.get("step") == "human_required" and any(keyword in text for keyword in bot_keywords):
+    if (state.get("step") == "human_required" or is_human_required(phone_number)) and any(keyword in text for keyword in bot_keywords):
         conversation_state[phone_number] = {}
         clear_human_required(phone_number)
         return "Claro 😊 Seguimos con el bot. Puedo ayudarte con citas, precios, pestañas, uñas o alisado. ¿Qué necesitas?"
+
+    if is_human_required(phone_number):
+        return None
 
     human_keywords = [
         "humano",

@@ -43,3 +43,24 @@ def handle_human_request(phone_number, incoming_message=None, customer_name=None
         customer_name=customer_name,
         incoming_message=incoming_message
     )
+
+
+def is_human_required(phone_number):
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT human_required
+                FROM customers
+                WHERE phone_number = %s
+                LIMIT 1
+            """, (phone_number,))
+            row = cursor.fetchone()
+
+            if not row:
+                return False
+
+            return bool(row.get("human_required"))
+    finally:
+        connection.close()
