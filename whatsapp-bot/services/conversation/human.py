@@ -1,4 +1,5 @@
 from database.connection import get_db_connection
+from services.notifications.owner_notifications import notify_human_request
 
 
 def mark_human_required(phone_number):
@@ -33,3 +34,12 @@ def clear_human_required(phone_number):
         connection.commit()
     finally:
         connection.close()
+
+
+def handle_human_request(phone_number, incoming_message=None, customer_name=None):
+    mark_human_required(phone_number)
+    notify_human_request(
+        phone_number,
+        customer_name=customer_name,
+        incoming_message=incoming_message
+    )

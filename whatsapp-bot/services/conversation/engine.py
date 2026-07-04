@@ -1,7 +1,7 @@
 from services.conversation.state import conversation_state
 from services.conversation.human import (
-    mark_human_required,
     clear_human_required,
+    handle_human_request,
 )
 from services.conversation.booking import handle_booking_flow
 from services.catalog.catalog import send_catalog_item
@@ -49,7 +49,7 @@ def build_reply(message, phone_number):
     ]
 
     if any(keyword in text for keyword in human_keywords):
-        mark_human_required(phone_number)
+        handle_human_request(phone_number, incoming_message=message)
         return "Claro 😊 Una asesora de Aura Beauty revisará tu mensaje. Mientras tanto, también puedo ayudarte con citas, precios, pestañas, uñas o alisado."
 
     cancel_keywords = [
