@@ -1,4 +1,5 @@
 from services.conversation.state import conversation_state
+from services.conversation.phrases import is_affirmative, is_negative, is_closing
 
 from services.appointment_service import (
     save_appointment,
@@ -27,6 +28,32 @@ def handle_booking_flow(message, phone_number, state):
     )
     if booking_reply:
         return booking_reply
+
+
+
+    if state.get("step") == "appointment_created":
+        if is_closing(text) or is_affirmative(text):
+            conversation_state[phone_number] = {}
+            return "Perfecto 😊 Te esperamos el día de tu cita. Recuerda enviar tu comprobante de anticipo para confirmar tu lugar. ¡Gracias por elegir Aura Beauty! 💖"
+
+        conversation_state[phone_number] = {}
+        return None
+
+    if state.get("step") == "confirm_booking":
+        service = state.get("service", "servicio")
+
+        if is_affirmative(text):
+            conversation_state[phone_number] = {
+                "step": "waiting_date",
+                "service": service
+            }
+            return f"Perfecto 😊 ¿Qué día te gustaría agendar tu cita de {service}?"
+
+        if is_negative(text):
+            conversation_state[phone_number] = {}
+            return "Con gusto 😊 Si después deseas agendar, aquí estaré para ayudarte."
+
+        return "¿Te gustaría agendar una cita? Puedes responder sí o no 😊"
 
     if state.get("step") == "waiting_service":
         if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
@@ -164,7 +191,10 @@ def handle_booking_flow(message, phone_number, state):
             appointment_time
         )
 
-        conversation_state[phone_number] = {}
+        conversation_state[phone_number] = {
+            "step": "appointment_created",
+            "service": service
+        }
 
         return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]}. Para confirmar se requiere anticipo de $150."
 

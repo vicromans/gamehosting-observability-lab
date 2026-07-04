@@ -90,10 +90,12 @@ def build_reply(message, phone_number):
         return "Claro 😊 Te ayudo a agendar. ¿Qué servicio necesitas: pestañas, uñas o alisado?"
 
     if any(word in text for word in ["pestaña", "pestañas", "lash", "lashes"]):
+        conversation_state[phone_number] = {"step": "confirm_booking", "service": "pestañas"}
         return "Para pestañas tenemos promoción en $350 ✨ Para agendar se requiere anticipo de $150. ¿Quieres agendar una cita?"
 
     if any(word in text for word in ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente"]):
-        return "Para uñas tenemos opciones desde $125 en gel semipermanente. Acrílico desde $250 y esculturales desde $300 según largo. Para agendar se requiere anticipo de $150 💅 ¿Qué servicio buscas?"
+        conversation_state[phone_number] = {"step": "confirm_booking", "service": "uñas"}
+        return "Para uñas tenemos opciones desde $125 en gel semipermanente. Acrílico desde $250 y esculturales desde $300 según largo. Para agendar se requiere anticipo de $150 💅 ¿Quieres agendar una cita?"
 
     if any(word in text for word in ["alisado", "cabello", "pelo", "keratina"]):
         return "El alisado progresivo depende del largo del cabello y dura aproximadamente 4 horas. ¿Tu cabello es corto, medio o largo?"
