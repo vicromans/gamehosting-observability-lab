@@ -4,7 +4,33 @@ from zoneinfo import ZoneInfo
 from database.connection import get_db_connection
 
 
-AVAILABLE_TIMES = ["10:00:00", "12:00:00", "15:00:00"]
+DEFAULT_AVAILABLE_TIMES = ["10:00:00", "12:00:00", "15:00:00"]
+
+
+def get_business_time_slots(appointment_date, business_id=1):
+    weekday = datetime.strptime(str(appointment_date), "%Y-%m-%d").weekday()
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT slot_time
+        FROM business_time_slots
+        WHERE business_id = %s
+          AND weekday = %s
+          AND active = 1
+        ORDER BY slot_time ASC
+    """, (business_id, weekday))
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    if not rows:
+        return DEFAULT_AVAILABLE_TIMES
+
+    return [str(row["slot_time"]) for row in rows]
 
 
 def get_service_duration_minutes(service_name, business_id=1):
@@ -152,7 +178,7 @@ def get_available_times(appointment_date, service_name=None, business_id=1):
     current_minutes = now.hour * 60 + now.minute
     minimum_notice_minutes = 60
 
-    for time_slot in AVAILABLE_TIMES:
+    for time_slot in get_business_time_slots(appointment_date, business_id):
         slot_minutes = time_to_minutes(time_slot)
 
         if str(appointment_date) == str(today):
