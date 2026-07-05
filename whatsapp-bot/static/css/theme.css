@@ -368,3 +368,35 @@
         box-shadow: 0 12px 30px rgba(0,0,0,0.35);
     }
 }
+
+.settings-form {
+    display: grid;
+    gap: 18px;
+    max-width: 700px;
+}
+
+.settings-form label {
+    font-weight: 600;
+    color: #111827;
+}
+
+.settings-form input[type="text"],
+.settings-form input[type="number"],
+.settings-form textarea,
+.settings-form select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 15px;
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-actions {
+    margin-top: 10px;
+}

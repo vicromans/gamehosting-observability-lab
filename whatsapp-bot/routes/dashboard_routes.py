@@ -565,10 +565,36 @@ def dashboard_reports():
         items=[]
     )
 
-@dashboard_bp.get("/whatsapp/dashboard/settings")
+@dashboard_bp.route("/whatsapp/dashboard/settings", methods=["GET", "POST"])
 def dashboard_settings():
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    if request.method == "POST":
+        business_name = request.form.get("business_name", "").strip()
+        business_type = request.form.get("business_type", "").strip()
+        owner_name = request.form.get("owner_name", "").strip()
+        phone_number = request.form.get("phone_number", "").strip()
+        active = 1 if request.form.get("active") == "1" else 0
+
+        cursor.execute("""
+            UPDATE businesses
+            SET business_name = %s,
+                business_type = %s,
+                owner_name = %s,
+                phone_number = %s,
+                active = %s
+            WHERE id = %s
+        """, (
+            business_name,
+            business_type,
+            owner_name,
+            phone_number,
+            active,
+            1
+        ))
+
+        conn.commit()
 
     cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
     business = cursor.fetchone()
@@ -577,12 +603,9 @@ def dashboard_settings():
     conn.close()
 
     return render_template(
-        "simple_page.html",
+        "settings.html",
         business=business,
-        active_page="settings",
-        page_title="Configuración",
-        page_description="Próximamente: horarios, mensajes, anticipos y datos del negocio.",
-        items=[]
+        active_page="settings"
     )
 
 @dashboard_bp.route("/dashboard/appointments/<int:appointment_id>/<action>", methods=["POST"])

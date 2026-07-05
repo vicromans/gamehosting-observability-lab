@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}
+Configuración · {{ business.business_name }}
+{% endblock %}
+
+{% block content %}
+
+{% set page_title = "Configuración" %}
+{% set page_subtitle = "Datos generales del negocio" %}
+{% include "components/topbar.html" %}
+
+<div class="card">
+    <h2>Información del negocio</h2>
+
+    <form method="POST" class="settings-form">
+        <label>Nombre del negocio</label>
+        <input type="text" name="business_name" value="{{ business.business_name or '' }}" required>
+
+        <label>Tipo de negocio</label>
+        <input type="text" name="business_type" value="{{ business.business_type or '' }}">
+
+        <label>Propietaria / responsable</label>
+        <input type="text" name="owner_name" value="{{ business.owner_name or '' }}">
+
+        <label>Teléfono</label>
+        <input type="text" name="phone_number" value="{{ business.phone_number or '' }}">
+
+        <label class="checkbox-row">
+            <input type="checkbox" name="active" value="1" {% if business.active %}checked{% endif %}>
+            Negocio activo
+        </label>
+
+        <button type="submit" class="btn btn-primary">
+            Guardar cambios
+        </button>
+    </form>
+</div>
+
+{% endblock %}
