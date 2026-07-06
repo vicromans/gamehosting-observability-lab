@@ -6,6 +6,7 @@ from services.appointment_service import (
     is_time_slot_available,
     get_available_times,
     format_available_times_message,
+    get_service_deposit_amount,
 )
 
 from services.customer_service import get_customer_display_name, customer_can_home_service
@@ -71,7 +72,8 @@ def handle_booking_flow(message, phone_number, state):
             "service": service
         }
 
-        return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]} {location}. Para confirmar se requiere anticipo de $150."
+        deposit_amount = get_service_deposit_amount(service)
+        return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]} {location}. Para confirmar se requiere anticipo de ${deposit_amount}."
 
 
     if state.get("step") == "confirm_known_customer":
@@ -106,7 +108,8 @@ def handle_booking_flow(message, phone_number, state):
                 "service": service
             }
 
-            return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]} en casa de Mercedes. Para confirmar se requiere anticipo de $150."
+            deposit_amount = get_service_deposit_amount(service)
+            return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]} en casa de Mercedes. Para confirmar se requiere anticipo de ${deposit_amount}."
 
         if is_negative(text):
             conversation_state[phone_number] = {
@@ -304,6 +307,7 @@ def handle_booking_flow(message, phone_number, state):
             "service": service
         }
 
-        return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]} en casa de Mercedes. Para confirmar se requiere anticipo de $150."
+        deposit_amount = get_service_deposit_amount(service)
+        return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]} en casa de Mercedes. Para confirmar se requiere anticipo de ${deposit_amount}."
 
     return None
