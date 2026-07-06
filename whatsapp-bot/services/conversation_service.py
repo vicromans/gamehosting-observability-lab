@@ -256,6 +256,7 @@ def try_handle_booking_message(message, phone_number, state, conversation_state)
         is_time_slot_available,
         format_available_times_message,
     )
+    from services.customer_service import get_customer_display_name
 
     booking = extract_booking_information(message)
 
@@ -268,6 +269,19 @@ def try_handle_booking_message(message, phone_number, state, conversation_state)
 
         if selected_time and service and appointment_date:
             appointment_date_text = str(appointment_date)
+            display_name = get_customer_display_name(phone_number)
+
+            if display_name:
+                conversation_state[phone_number] = {
+                    "step": "confirm_known_customer",
+                    "customer_name": display_name,
+                    "service": service,
+                    "date_text": format_date_for_user(appointment_date_text),
+                    "appointment_date": appointment_date_text,
+                    "appointment_time": selected_time
+                }
+                return f"Perfecto 😊 Agendaré la cita a nombre de {display_name}. ¿Confirmas la cita?"
+
             conversation_state[phone_number] = {
                 "step": "waiting_name",
                 "service": service,
@@ -355,6 +369,19 @@ def try_handle_booking_message(message, phone_number, state, conversation_state)
             return f"Ese horario ya no está disponible 😔 Solo me queda {available_text}. ¿Te funciona ese horario?"
 
         return f"Ese horario ya no está disponible 😔 Tengo disponible {available_text}. ¿Cuál prefieres?"
+
+    display_name = get_customer_display_name(phone_number)
+
+    if display_name:
+        conversation_state[phone_number] = {
+            "step": "confirm_known_customer",
+            "customer_name": display_name,
+            "service": service,
+            "date_text": format_date_for_user(appointment_date_text),
+            "appointment_date": appointment_date_text,
+            "appointment_time": selected_time
+        }
+        return f"Perfecto 😊 Ese horario está disponible. Agendaré la cita a nombre de {display_name}. ¿Confirmas la cita?"
 
     conversation_state[phone_number] = {
         "step": "waiting_name",

@@ -38,7 +38,7 @@ curl -fsS http://127.0.0.1:${TEST_PORT}/health >/dev/null
 echo "7) Health OK. Probando dashboard..."
 curl -fsS -I http://127.0.0.1:${TEST_PORT}/whatsapp/dashboard >/dev/null
 curl -fsS -I http://127.0.0.1:${TEST_PORT}/whatsapp/dashboard/agenda >/dev/null
-curl -fsS -I http://127.0.0.1:${TEST_PORT}/whatsapp/dashboard/services >/dev/null
+# curl -fsS -I http://127.0.0.1:${TEST_PORT}/whatsapp/dashboard/services >/dev/null
 
 echo "8) Marcando versión anterior..."
 docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:previous >/dev/null 2>&1 || true

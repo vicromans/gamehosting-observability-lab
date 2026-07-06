@@ -57,7 +57,7 @@ def get_service_duration_minutes(service_name, business_id=1):
     return row.get("duration_minutes") or 120
 
 
-def save_appointment(phone_number, customer_name, service_name, appointment_date, appointment_time, business_id=1):
+def save_appointment(phone_number, customer_name, service_name, appointment_date, appointment_time, business_id=1, service_location='casa_mercedes'):
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -65,6 +65,7 @@ def save_appointment(phone_number, customer_name, service_name, appointment_date
         INSERT INTO appointments (
             business_id,
             customer_phone,
+              service_location,
             customer_name,
             service_name,
             appointment_date,
@@ -74,10 +75,11 @@ def save_appointment(phone_number, customer_name, service_name, appointment_date
             deposit_paid,
             notes
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
         business_id,
         phone_number,
+          service_location,
         customer_name,
         service_name,
         appointment_date,
@@ -103,19 +105,52 @@ def ranges_overlap(start_a, end_a, start_b, end_b):
     return start_a < end_b and end_a > start_b
 
 
-def is_slot_blocked(appointment_date, appointment_time):
-    return False
+def is_slot_blocked(appointment_date, appointment_time, business_id=1):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id
+        FROM blocked_slots
+        WHERE business_id = %s
+          AND appointment_date = %s
+          AND appointment_time = %s
+        LIMIT 1
+    """, (business_id, appointment_date, appointment_time))
+
+    row = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return row is not None
 
 
-def is_day_blocked(appointment_date):
-    return False
+def is_day_blocked(appointment_date, business_id=1):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id
+        FROM availability_exceptions
+        WHERE business_id = %s
+          AND blocked_date = %s
+        LIMIT 1
+    """, (business_id, appointment_date))
+
+    row = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return row is not None
 
 
 def is_time_slot_available(appointment_date, appointment_time, service_name=None, business_id=1):
-    if is_day_blocked(appointment_date):
+    if is_day_blocked(appointment_date, business_id):
         return False
 
-    if is_slot_blocked(appointment_date, appointment_time):
+    if is_slot_blocked(appointment_date, appointment_time, business_id):
         return False
 
     requested_duration = get_service_duration_minutes(service_name or "", business_id)
@@ -170,7 +205,7 @@ def format_time_for_user(time_value):
 def get_available_times(appointment_date, service_name=None, business_id=1):
     available = []
 
-    if is_day_blocked(appointment_date):
+    if is_day_blocked(appointment_date, business_id):
         return available
 
     now = datetime.now(ZoneInfo("America/Mexico_City"))

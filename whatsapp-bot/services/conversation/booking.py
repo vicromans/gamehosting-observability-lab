@@ -8,6 +8,8 @@ from services.appointment_service import (
     format_available_times_message,
 )
 
+from services.customer_service import get_customer_display_name, customer_can_home_service
+
 from services.conversation_service import (
     parse_time_from_message,
     parse_date_from_message,
@@ -38,6 +40,86 @@ def handle_booking_flow(message, phone_number, state):
 
         conversation_state[phone_number] = {}
         return None
+
+    if state.get("step") == "waiting_location_choice":
+        customer_name = state.get("customer_name")
+        service = state.get("service")
+        date_text = state.get("date_text")
+        appointment_date = state.get("appointment_date")
+        appointment_time = state.get("appointment_time")
+
+        if any(word in text for word in ["domicilio", "mi casa", "casa de la clienta", "a domicilio"]):
+            location = "a domicilio"
+            service_location = "home_service"
+        elif any(word in text for word in ["mercedes", "casa de mercedes", "local", "ahi", "ahí"]):
+            location = "en casa de Mercedes"
+            service_location = "casa_mercedes"
+        else:
+            return "¿Prefieres que el servicio sea en casa de Mercedes o a domicilio? 😊"
+
+        save_appointment(
+            phone_number,
+            customer_name,
+            service,
+            appointment_date,
+            appointment_time,
+            service_location=service_location
+        )
+
+        conversation_state[phone_number] = {
+            "step": "appointment_created",
+            "service": service
+        }
+
+        return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]} {location}. Para confirmar se requiere anticipo de $150."
+
+
+    if state.get("step") == "confirm_known_customer":
+        customer_name = state.get("customer_name")
+        service = state.get("service")
+        date_text = state.get("date_text")
+        appointment_date = state.get("appointment_date")
+        appointment_time = state.get("appointment_time")
+
+        if is_affirmative(text):
+            if customer_can_home_service(phone_number):
+                conversation_state[phone_number] = {
+                    "step": "waiting_location_choice",
+                    "customer_name": customer_name,
+                    "service": service,
+                    "date_text": date_text,
+                    "appointment_date": appointment_date,
+                    "appointment_time": appointment_time
+                }
+                return "Perfecto 😊 ¿Prefieres que el servicio sea en casa de Mercedes o a domicilio?"
+
+            save_appointment(
+                phone_number,
+                customer_name,
+                service,
+                appointment_date,
+                appointment_time
+            )
+
+            conversation_state[phone_number] = {
+                "step": "appointment_created",
+                "service": service
+            }
+
+            return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]} en casa de Mercedes. Para confirmar se requiere anticipo de $150."
+
+        if is_negative(text):
+            conversation_state[phone_number] = {
+                "step": "waiting_name",
+                "service": service,
+                "date_text": date_text,
+                "appointment_date": appointment_date,
+                "appointment_time": appointment_time
+            }
+            return "Claro 😊 ¿A nombre de quién agendo la cita?"
+
+        return f"Agendaré la cita a nombre de {customer_name}. ¿Confirmas la cita? Puedes responder sí o no 😊"
+
 
     if state.get("step") == "confirm_booking":
         service = state.get("service", "servicio")
@@ -109,6 +191,19 @@ def handle_booking_flow(message, phone_number, state):
                 }
                 return f"Ese horario ya está ocupado 😔 Tengo disponible {available_text}. ¿Cuál prefieres?"
 
+            display_name = get_customer_display_name(phone_number)
+
+            if display_name:
+                conversation_state[phone_number] = {
+                    "step": "confirm_known_customer",
+                    "customer_name": display_name,
+                    "service": service,
+                    "date_text": appointment_date_text,
+                    "appointment_date": str(appointment_date),
+                    "appointment_time": selected_time
+                }
+                return f"Perfecto 😊 Ese horario está disponible. Agendaré la cita a nombre de {display_name}. ¿Confirmas la cita?"
+
             conversation_state[phone_number] = {
                 "step": "waiting_name",
                 "service": service,
@@ -162,6 +257,19 @@ def handle_booking_flow(message, phone_number, state):
 
             return f"Ese horario ya está ocupado 😔 Tengo disponible {available_text}. ¿Cuál prefieres?"
 
+        display_name = get_customer_display_name(phone_number)
+
+        if display_name:
+            conversation_state[phone_number] = {
+                "step": "confirm_known_customer",
+                "customer_name": display_name,
+                "service": service,
+                "date_text": date_text,
+                "appointment_date": appointment_date,
+                "appointment_time": selected_time
+            }
+            return f"Perfecto 😊 Agendaré la cita a nombre de {display_name}. ¿Confirmas la cita?"
+
         conversation_state[phone_number] = {
             "step": "waiting_name",
             "service": service,
@@ -196,6 +304,6 @@ def handle_booking_flow(message, phone_number, state):
             "service": service
         }
 
-        return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]}. Para confirmar se requiere anticipo de $150."
+        return f"Listo {customer_name} 😊 Tu cita de {service} quedó registrada para {date_text} a las {appointment_time[:5]} en casa de Mercedes. Para confirmar se requiere anticipo de $150."
 
     return None

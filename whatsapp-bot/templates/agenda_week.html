@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<div class="card calendar-control-panel">
+    <div class="calendar-toolbar">
+        <div>
+            <h2>Semana {{ week_stats.week_start }} → {{ week_stats.week_end }}</h2>
+            <p>Vista semanal de citas, bloqueos y disponibilidad.</p>
+
+            <div class="calendar-nav">
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda/week?date={{ previous_week }}">← Semana anterior</a>
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda/day/{{ today_date }}">Hoy</a>
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda/week?date={{ next_week }}">Semana siguiente →</a>
+            </div>
+        </div>
+
+        <div class="calendar-view-tabs">
+            <a class="calendar-view-tab" href="/whatsapp/dashboard/agenda">Mes</a>
+            <a class="calendar-view-tab active" href="/whatsapp/dashboard/agenda/week?date={{ selected_date }}">Semana</a>
+            <a class="calendar-view-tab" href="/whatsapp/dashboard/agenda/day/{{ selected_date }}">Día</a>
+        </div>
+    </div>
+
+    <div class="calendar-stats compact">
+        <div class="calendar-stat-card">
+            <div class="calendar-stat-number">{{ week_stats.total_appointments }}</div>
+            <div class="calendar-stat-label">Citas esta semana</div>
+        </div>
+
+        <div class="calendar-stat-card">
+            <div class="calendar-stat-number">{{ week_stats.blocked_days_count }}</div>
+            <div class="calendar-stat-label">Días bloqueados</div>
+        </div>
+
+        <div class="calendar-stat-card">
+            <div class="calendar-stat-number">{{ week_stats.partial_blocks_count }}</div>
+            <div class="calendar-stat-label">Horarios bloqueados</div>
+        </div>
+    </div>
+</div>
+
+<div class="week-board">
+    {% for day in week_days %}
+        <div class="card week-day-card {% if day.blocked %}week-day-blocked{% endif %}">
+            <div class="week-day-header">
+                <div>
+                    <h3>{{ day.name }}</h3>
+                    <p>{{ day.date }}</p>
+                </div>
+
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda/day/{{ day.date }}">
+                    Ver día
+                </a>
+            </div>
+
+            {% if day.blocked %}
+                <div class="week-blocked-message">
+                    ⛔ Día bloqueado
+                    {% if day.blocked_reason %}
+                        <br>{{ day.blocked_reason }}
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {% if day.appointments %}
+                {% for a in day.appointments %}
+                    <div class="week-appointment">
+                        <strong>{{ a.appointment_time }}</strong>
+                        <div>{{ a.customer_name or "Sin nombre" }}</div>
+                        <div>{{ a.service_name or "Servicio" }}</div>
+                        {% if a.service_location == "home_service" %}
+                            <div>🚗 A domicilio</div>
+                        {% else %}
+                            <div>🏠 Casa de Mercedes</div>
+                        {% endif %}
+                        <small>{{ a.status }}</small>
+                    </div>
+                {% endfor %}
+            {% else %}
+                {% if not day.blocked %}
+                    <div class="week-empty">Sin citas</div>
+                {% endif %}
+            {% endif %}
+
+            {% if day.blocked_slots %}
+                {% for slot in day.blocked_slots %}
+                    <div class="week-slot-blocked">
+                        🔒 {{ slot.appointment_time }} bloqueado
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

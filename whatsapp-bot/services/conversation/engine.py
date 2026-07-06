@@ -8,6 +8,7 @@ from services.conversation.booking import handle_booking_flow
 from services.catalog.catalog import send_catalog_item
 from services.catalog.detector import detect_catalog_item
 from services.conversation.hair import handle_hair_flow
+from services.customer_service import get_customer_display_name, customer_has_future_appointment
 
 
 def build_reply(message, phone_number):
@@ -87,8 +88,16 @@ def build_reply(message, phone_number):
     if hair_reply:
         return hair_reply
 
+    if any(word in text for word in ["direccion", "dirección", "ubicacion", "ubicación", "domicilio", "donde es", "dónde es", "donde estan", "dónde están", "donde queda", "dónde queda"]):
+        if customer_has_future_appointment(phone_number):
+            return "Claro 😊 Tu cita será en casa de Mercedes. La dirección es: Av. Sta. Lucía 104, Edificio Durango #68, Santa María Nonoalco, Álvaro Obregón, 01420 Ciudad de México, CDMX."
+        return "Las citas se realizan en casa de Mercedes 😊 La dirección completa se comparte cuando la cita ya está registrada."
+
     if any(word in text for word in ["hola", "buenas", "buenos dias", "buenos días", "buenas tardes", "buenas noches", "buen dia", "que onda", "qué onda", "que tal", "qué tal",
     "hola que tal", "hola qué tal", "hey", "hi", "kiubo", "quiubo", "que hay", "que rollo"]):
+        display_name = get_customer_display_name(phone_number)
+        if display_name:
+            return f"Hola {display_name} 😊 Qué gusto volver a saludarte. Puedo ayudarte con citas, precios, pestañas, uñas o alisado. ¿Qué necesitas?"
         return "¡Hola! 😊 Bienvenida a Aura Beauty. Puedo ayudarte con citas, precios, pestañas, uñas o alisado. ¿Qué necesitas?"
 
     if any(word in text for word in ["cita", "agendar", "agenda", "horario", "disponible"]):

@@ -400,3 +400,476 @@
 .settings-actions {
     margin-top: 10px;
 }
+
+/* Fase 7 - Calendario mensual */
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.calendar-header {
+    font-weight: 800;
+    text-align: center;
+    color: #64748b;
+}
+
+.calendar-day {
+    display: block;
+    min-height: 96px;
+    padding: 10px;
+    border-radius: 16px;
+    text-decoration: none;
+    color: #111827;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+}
+
+.calendar-day-number {
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.calendar-day-status {
+    font-size: 20px;
+    margin-top: 8px;
+}
+
+.calendar-day-small {
+    font-size: 12px;
+    margin-top: 4px;
+    color: #475569;
+}
+
+.calendar-day-muted {
+    opacity: 0.35;
+}
+
+.calendar-day-available {
+    background: #f8fafc;
+}
+
+.calendar-day-appointments {
+    background: #eff6ff;
+}
+
+.calendar-day-partial {
+    background: #fffbeb;
+}
+
+.calendar-day-full {
+    background: #fef2f2;
+}
+
+.calendar-day-blocked {
+    background: #fff1f2;
+    border-color: #fecdd3;
+}
+
+@media (max-width: 700px) {
+    .calendar-grid {
+        gap: 5px;
+    }
+
+    .calendar-day {
+        min-height: 72px;
+        padding: 7px;
+        border-radius: 12px;
+    }
+
+    .calendar-day-number {
+        font-size: 16px;
+    }
+
+    .calendar-day-status {
+        font-size: 16px;
+        margin-top: 4px;
+    }
+
+    .calendar-day-small {
+        display: none;
+    }
+
+    .calendar-header {
+        font-size: 12px;
+    }
+}
+
+/* Fase 7 - Toolbar calendario */
+.calendar-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.calendar-nav {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+.calendar-view-tabs {
+    display: flex;
+    gap: 6px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 6px;
+}
+
+.calendar-view-tab {
+    padding: 10px 16px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 800;
+    color: #334155;
+}
+
+.calendar-view-tab.active {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.calendar-view-tab.disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+/* Fase 7 - Estadísticas calendario */
+.calendar-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.calendar-stat-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+.calendar-stat-number {
+    font-size: 30px;
+    font-weight: 900;
+    color: #111827;
+}
+
+.calendar-stat-label {
+    margin-top: 4px;
+    color: #64748b;
+    font-weight: 700;
+}
+
+@media (max-width: 900px) {
+    .calendar-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    .calendar-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Fase 7 - Header compacto calendario */
+.calendar-control-panel {
+    display: grid;
+    gap: 18px;
+}
+
+.calendar-stats.compact {
+    margin-bottom: 0;
+}
+
+.calendar-stats.compact .calendar-stat-card {
+    box-shadow: none;
+    padding: 14px 16px;
+}
+
+.calendar-stats.compact .calendar-stat-number {
+    font-size: 26px;
+}
+
+.calendar-legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 14px;
+}
+
+@media (max-width: 700px) {
+    .calendar-control-panel {
+        gap: 14px;
+    }
+
+    .calendar-legend {
+        font-size: 13px;
+        gap: 10px;
+    }
+}
+
+/* Fase 7 - Casillas calendario enriquecidas */
+.calendar-day-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.calendar-day-dot {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.calendar-day-info {
+    margin-top: 14px;
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+}
+
+.calendar-day-info strong {
+    font-size: 13px;
+    color: #111827;
+}
+
+.calendar-day-info span {
+    color: #475569;
+}
+
+@media (max-width: 700px) {
+    .calendar-day-info {
+        display: none;
+    }
+
+    .calendar-day-dot {
+        font-size: 16px;
+    }
+}
+
+/* Fase 7 - Vista semanal */
+.week-board {
+    display: grid;
+    gap: 14px;
+}
+
+.week-day-card {
+    display: grid;
+    gap: 12px;
+}
+
+.week-day-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.week-day-header h3 {
+    margin: 0;
+    font-size: 22px;
+}
+
+.week-day-header p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-weight: 700;
+}
+
+.week-appointment {
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    border-radius: 14px;
+    padding: 12px;
+}
+
+.week-appointment strong {
+    font-size: 18px;
+}
+
+.week-appointment small {
+    color: #64748b;
+    font-weight: 700;
+}
+
+.week-empty {
+    color: #94a3b8;
+    font-weight: 700;
+    padding: 12px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+}
+
+.week-day-blocked {
+    background: #fff1f2;
+    border-color: #fecdd3;
+}
+
+.week-blocked-message {
+    color: #9f1239;
+    font-weight: 800;
+}
+
+.week-slot-blocked {
+    border: 1px solid #fde68a;
+    background: #fffbeb;
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-weight: 800;
+}
+
+@media (min-width: 1000px) {
+    .week-board {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    .week-day-card {
+        align-content: start;
+        min-height: 420px;
+    }
+
+    .week-day-header {
+        display: block;
+    }
+
+    .week-day-header .btn {
+        margin-top: 10px;
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* Fase 7 - Vista diaria timeline */
+.day-block-form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.day-block-form input {
+    flex: 1;
+    min-width: 220px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+
+.day-timeline {
+    display: grid;
+    gap: 14px;
+}
+
+.day-slot {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 16px;
+    align-items: stretch;
+}
+
+.day-slot-time {
+    font-size: 22px;
+    font-weight: 900;
+    color: #334155;
+    padding-top: 18px;
+    text-align: right;
+}
+
+.day-slot-content {
+    border-left: 3px solid #e5e7eb;
+    padding-left: 16px;
+}
+
+.day-appointment-card,
+.day-free-slot,
+.day-blocked-slot {
+    border-radius: 18px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+}
+
+.day-appointment-card {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.day-appointment-main {
+    display: grid;
+    gap: 4px;
+}
+
+.day-appointment-main strong {
+    font-size: 20px;
+}
+
+.day-appointment-main span {
+    color: #475569;
+    font-weight: 800;
+}
+
+.day-appointment-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    color: #64748b;
+    font-weight: 700;
+}
+
+.day-appointment-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+.day-free-slot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    color: #64748b;
+    font-weight: 800;
+    border-style: dashed;
+}
+
+.day-blocked-slot {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #9f1239;
+    font-weight: 900;
+}
+
+@media (max-width: 700px) {
+    .day-slot {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .day-slot-time {
+        text-align: left;
+        padding-top: 0;
+        font-size: 18px;
+    }
+
+    .day-slot-content {
+        border-left: none;
+        padding-left: 0;
+    }
+
+    .day-free-slot {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

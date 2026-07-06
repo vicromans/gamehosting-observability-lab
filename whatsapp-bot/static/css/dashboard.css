@@ -90,3 +90,142 @@
         gap: 14px;
     }
 }
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.calendar-header {
+    font-weight: 800;
+    text-align: center;
+    color: #64748b;
+}
+
+.calendar-day {
+    display: block;
+    min-height: 96px;
+    padding: 10px;
+    border-radius: 16px;
+    text-decoration: none;
+    color: #111827;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+}
+
+.calendar-day-number {
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.calendar-day-status {
+    font-size: 20px;
+    margin-top: 8px;
+}
+
+.calendar-day-small {
+    font-size: 12px;
+    margin-top: 4px;
+    color: #475569;
+}
+
+.calendar-day-muted {
+    opacity: 0.35;
+}
+
+.calendar-day-available {
+    background: #f8fafc;
+}
+
+.calendar-day-appointments {
+    background: #eff6ff;
+}
+
+.calendar-day-partial {
+    background: #fffbeb;
+}
+
+.calendar-day-full {
+    background: #fef2f2;
+}
+
+.calendar-day-blocked {
+    background: #fff1f2;
+    border-color: #fecdd3;
+}
+
+@media (max-width: 700px) {
+    .calendar-grid {
+        gap: 5px;
+    }
+
+    .calendar-day {
+        min-height: 72px;
+        padding: 7px;
+        border-radius: 12px;
+    }
+
+    .calendar-day-number {
+        font-size: 16px;
+    }
+
+    .calendar-day-status {
+        font-size: 16px;
+        margin-top: 4px;
+    }
+
+    .calendar-day-small {
+        display: none;
+    }
+
+    .calendar-header {
+        font-size: 12px;
+    }
+}
+@media (max-width: 700px) {
+    .calendar-toolbar {
+        gap: 18px;
+    }
+
+    .calendar-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .calendar-nav .btn {
+        flex: 1 1 auto;
+        text-align: center;
+    }
+
+    .calendar-view-tabs {
+        width: 100%;
+        justify-content: center;
+        margin-top: 8px;
+    }
+
+    .calendar-block-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .calendar-block-form input,
+    .calendar-block-form button {
+        width: 100%;
+    }
+
+    .day-timeline {
+        margin-top: 8px;
+    }
+
+    .day-row {
+        display: block;
+    }
+
+    .day-time {
+        margin-bottom: 8px;
+    }
+}

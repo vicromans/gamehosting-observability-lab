@@ -3,26 +3,115 @@
 {% block content %}
 {% include "components/topbar.html" with context %}
 
-<div class="agenda-days">
-    {% if agenda_days %}
-        {% for day in agenda_days %}
-            <div class="card agenda-day-card">
-                <div class="agenda-day-header">
-                    <div>
-                        <h2>{{ day.appointment_date }}</h2>
-                        <p>{{ day.total }} cita(s)</p>
+<div class="card calendar-control-panel">
+    <div class="calendar-toolbar">
+        <div>
+            <h2>{{ month_name }}</h2>
+            <p>Calendario mensual de citas y disponibilidad.</p>
+
+            <div class="calendar-nav">
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda?year={{ previous_year }}&month={{ previous_month }}">← Mes anterior</a>
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda/day/{{ today_date }}">Hoy</a>
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda?year={{ next_year }}&month={{ next_month }}">Mes siguiente →</a>
+            </div>
+        </div>
+
+        <div class="calendar-view-tabs">
+            <a class="calendar-view-tab active" href="/whatsapp/dashboard/agenda?year={{ year }}&month={{ month }}">Mes</a>
+            <a class="calendar-view-tab" href="/whatsapp/dashboard/agenda/week">Semana</a>
+            <a class="calendar-view-tab" href="/whatsapp/dashboard/agenda/day/{{ today_date }}">Día</a>
+        </div>
+    </div>
+
+    <div class="calendar-stats compact">
+        <div class="calendar-stat-card">
+            <div class="calendar-stat-number">{{ month_stats.total_appointments }}</div>
+            <div class="calendar-stat-label">Citas este mes</div>
+        </div>
+
+        <div class="calendar-stat-card">
+            <div class="calendar-stat-number">{{ month_stats.occupancy_percent }}%</div>
+            <div class="calendar-stat-label">Ocupación estimada</div>
+        </div>
+
+        <div class="calendar-stat-card">
+            <div class="calendar-stat-number">{{ month_stats.blocked_days_count }}</div>
+            <div class="calendar-stat-label">Días bloqueados</div>
+        </div>
+
+        <div class="calendar-stat-card">
+            <div class="calendar-stat-number">{{ month_stats.partial_blocks_count }}</div>
+            <div class="calendar-stat-label">Horarios bloqueados</div>
+        </div>
+    </div>
+
+    <div class="calendar-legend">
+        <span>🟢 Disponible</span>
+        <span>🔵 Con citas</span>
+        <span>🟡 Parcial</span>
+        <span>🔴 Lleno</span>
+        <span>⛔ Bloqueado</span>
+    </div>
+</div>
+
+<div class="card">
+    <div class="calendar-grid calendar-header">
+        <div>Lun</div>
+        <div>Mar</div>
+        <div>Mié</div>
+        <div>Jue</div>
+        <div>Vie</div>
+        <div>Sáb</div>
+        <div>Dom</div>
+    </div>
+
+    {% for week in calendar_weeks %}
+        <div class="calendar-grid">
+            {% for day in week %}
+                <a
+                    class="calendar-day calendar-day-{{ day.status }} {% if not day.current_month %}calendar-day-muted{% endif %}"
+                    href="/whatsapp/dashboard/agenda/day/{{ day.date }}"
+                >
+                    <div class="calendar-day-top">
+                        <div class="calendar-day-number">{{ day.day_number }}</div>
+
+                        {% if day.blocked %}
+                            <div class="calendar-day-dot">⛔</div>
+                        {% elif day.status == "full" %}
+                            <div class="calendar-day-dot">🔴</div>
+                        {% elif day.status == "partial" %}
+                            <div class="calendar-day-dot">🟡</div>
+                        {% elif day.total_appointments > 0 %}
+                            <div class="calendar-day-dot">🔵</div>
+                        {% else %}
+                            <div class="calendar-day-dot">🟢</div>
+                        {% endif %}
                     </div>
 
-                    <a class="btn btn-primary" href="/whatsapp/dashboard/agenda/day/{{ day.appointment_date }}">
-                        Ver día
-                    </a>
-                </div>
-            </div>
-        {% endfor %}
-    {% else %}
-        <div class="card">
-            <p>No hay citas registradas.</p>
+                    <div class="calendar-day-info">
+                        {% if day.blocked %}
+                            <strong>Bloqueado</strong>
+                        {% elif day.status == "full" %}
+                            <strong>Lleno</strong>
+                        {% elif day.status == "partial" %}
+                            <strong>Parcial</strong>
+                        {% elif day.total_appointments > 0 %}
+                            <strong>Con citas</strong>
+                        {% else %}
+                            <strong>Disponible</strong>
+                        {% endif %}
+
+                        {% if day.total_appointments > 0 %}
+                            <span>{{ day.total_appointments }} cita(s)</span>
+                        {% endif %}
+
+                        {% if day.partial_blocks > 0 %}
+                            <span>{{ day.partial_blocks }} bloqueo(s)</span>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endfor %}
         </div>
-    {% endif %}
+    {% endfor %}
 </div>
 {% endblock %}

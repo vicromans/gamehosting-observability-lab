@@ -3,26 +3,107 @@
 {% block content %}
 {% include "components/topbar.html" with context %}
 
-<div class="card">
-    <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda">← Volver a Agenda</a>
+<div class="card calendar-control-panel">
+    <div class="calendar-toolbar">
+        <div>
+            <h2>{{ appointment_date }}</h2>
+            <p>Vista diaria de citas, bloqueos y horarios disponibles.</p>
+
+            <div class="calendar-nav">
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda/day/{{ previous_day }}">← Día anterior</a>
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda">Mes</a>
+                <a class="btn btn-secondary" href="/whatsapp/dashboard/agenda/day/{{ next_day }}">Día siguiente →</a>
+            </div>
+        </div>
+
+        <div class="calendar-view-tabs">
+            <a class="calendar-view-tab" href="/whatsapp/dashboard/agenda">Mes</a>
+            <a class="calendar-view-tab" href="/whatsapp/dashboard/agenda/week?date={{ appointment_date }}">Semana</a>
+            <a class="calendar-view-tab active" href="/whatsapp/dashboard/agenda/day/{{ appointment_date }}">Día</a>
+        </div>
+    </div>
+
+    <div>
+        {% if day_block %}
+            <p><strong>Estado:</strong> ⛔ Día bloqueado</p>
+            <p><strong>Motivo:</strong> {{ day_block.reason or "Sin motivo registrado" }}</p>
+
+            <form method="POST" action="/whatsapp/dashboard/agenda/day/{{ appointment_date }}/unblock">
+                <button class="btn btn-secondary" type="submit">Desbloquear día</button>
+            </form>
+        {% else %}
+            <p><strong>Estado:</strong> Disponible</p>
+
+            <form method="POST" action="/whatsapp/dashboard/agenda/day/{{ appointment_date }}/block" class="day-block-form">
+                <input
+                    name="reason"
+                    type="text"
+                    placeholder="Motivo del bloqueo del día"
+                >
+                <button class="btn btn-primary" type="submit">Bloquear día completo</button>
+            </form>
+        {% endif %}
+    </div>
 </div>
 
-<div class="agenda-appointments">
-    {% if appointments %}
-        {% for a in appointments %}
-            <div class="card appointment-card">
-                <div class="appointment-time">{{ a.appointment_time }}</div>
-                <div><strong>Cliente:</strong> {{ a.customer_name or "Sin nombre" }}</div>
-                <div><strong>Teléfono:</strong> {{ a.customer_phone }}</div>
-                <div><strong>Servicio:</strong> {{ a.service_name }}</div>
-                <div><strong>Estado:</strong> {{ a.status }}</div>
-                <div><strong>Anticipo:</strong> ${{ a.deposit_required }}</div>
+<div class="day-timeline">
+    {% for slot in timeline_slots %}
+        <div class="day-slot day-slot-{{ slot.status }}">
+            <div class="day-slot-time">
+                {{ slot.time[:5] }}
             </div>
-        {% endfor %}
-    {% else %}
-        <div class="card">
-            <p>No hay citas para este día.</p>
+
+            <div class="day-slot-content">
+                {% if slot.status == "appointment" %}
+                    <div class="day-appointment-card">
+                        <div class="day-appointment-main">
+                            <strong>{{ slot.appointment.customer_name or "Sin nombre" }}</strong>
+                            <span>{{ slot.appointment.service_name or "Servicio" }}</span>
+                            {% if slot.appointment.service_location == "home_service" %}
+                                <span>🚗 A domicilio</span>
+                            {% else %}
+                                <span>🏠 Casa de Mercedes</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="day-appointment-meta">
+                            <span>Estado: {{ slot.appointment.status }}</span>
+                            <span>Anticipo: ${{ slot.appointment.deposit_required }}</span>
+                        </div>
+
+                        <div class="day-appointment-actions">
+                            <form method="POST" action="/whatsapp/dashboard/appointments/{{ slot.appointment.id }}/confirm">
+                                <button class="btn btn-secondary" type="submit">Confirmar</button>
+                            </form>
+
+                            <form method="POST" action="/whatsapp/dashboard/appointments/{{ slot.appointment.id }}/complete">
+                                <button class="btn btn-secondary" type="submit">Completar</button>
+                            </form>
+
+                            <form method="POST" action="/whatsapp/dashboard/appointments/{{ slot.appointment.id }}/cancel">
+                                <button class="btn btn-secondary" type="submit">Cancelar</button>
+                            </form>
+                        </div>
+                    </div>
+                {% elif slot.status == "blocked" %}
+                    <div class="day-blocked-slot">
+                        🔒 Horario bloqueado
+                        {% if slot.blocked_slot.reason %}
+                            <br>{{ slot.blocked_slot.reason }}
+                        {% endif %}
+                    </div>
+                {% elif slot.status == "day_blocked" %}
+                    <div class="day-blocked-slot">
+                        ⛔ Día bloqueado
+                    </div>
+                {% else %}
+                    <div class="day-free-slot">
+                        <span>Disponible</span>
+                        <button class="btn btn-secondary" type="button" disabled>+ Agregar cita</button>
+                    </div>
+                {% endif %}
+            </div>
         </div>
-    {% endif %}
+    {% endfor %}
 </div>
 {% endblock %}
