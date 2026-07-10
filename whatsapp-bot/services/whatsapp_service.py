@@ -90,3 +90,62 @@ def send_whatsapp_image(to, image_url, caption, phone_number_id, token):
     print("WHATSAPP IMAGE SEND RESPONSE:", response.text)
 
     return response
+
+
+def send_human_support_template_message(
+    to,
+    business_name,
+    customer_name,
+    reason,
+    phone_number_id,
+    token,
+):
+    url = f"https://graph.facebook.com/v23.0/{phone_number_id}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": "human_support_request",
+            "language": {
+                "code": "es_MX",
+            },
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {
+                            "type": "text",
+                            "text": business_name,
+                        },
+                        {
+                            "type": "text",
+                            "text": customer_name,
+                        },
+                        {
+                            "type": "text",
+                            "text": reason,
+                        },
+                    ],
+                }
+            ],
+        },
+    }
+
+    response = requests.post(
+        url,
+        headers=headers,
+        json=payload,
+        timeout=10,
+    )
+
+    print("WHATSAPP HUMAN TEMPLATE STATUS:", response.status_code)
+    print("WHATSAPP HUMAN TEMPLATE RESPONSE:", response.text)
+
+    return response
