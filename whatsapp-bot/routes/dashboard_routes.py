@@ -7,6 +7,7 @@ from services.whatsapp_service import (
 )
 from meta_errors import translate_meta_error
 from services.appointment_service import get_business_time_slots
+from services.business_service import get_default_business
 import os
 import calendar
 
@@ -182,10 +183,9 @@ def dashboard_clients():
     connection = get_db_connection()
 
     try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM businesses WHERE id = 1")
-            business = cursor.fetchone()
+        business = get_default_business()
 
+        with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT
                     id,
@@ -196,9 +196,9 @@ def dashboard_clients():
                     human_required,
                     last_contact
                 FROM customers
-                WHERE business_id = 1
+                WHERE business_id = %s
                 ORDER BY last_contact DESC
-            """)
+            """, (business["id"],))
             customers = cursor.fetchall()
 
         return render_template(
