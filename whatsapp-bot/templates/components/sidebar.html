@@ -3,11 +3,95 @@
     <div class="brand-subtitle">Panel de administración</div>
 
     <nav class="menu">
-        <a class="{% if active_page == 'dashboard' %}active{% endif %}" href="/whatsapp/dashboard">📊 Dashboard</a>
-        <a class="{% if active_page == 'agenda' %}active{% endif %}" href="/whatsapp/dashboard/agenda">📅 Agenda</a>
-        <a class="{% if active_page == 'clients' %}active{% endif %}" href="/whatsapp/dashboard/clients">👥 Clientes</a>
-        <a class="{% if active_page == 'services' %}active{% endif %}" href="/whatsapp/dashboard/services">💅 Servicios</a>
-        <a class="{% if active_page == 'reports' %}active{% endif %}" href="/whatsapp/dashboard/reports">📈 Reportes</a>
-        <a class="{% if active_page == 'settings' %}active{% endif %}" href="/whatsapp/dashboard/settings">⚙️ Configuración</a>
+        <a
+            class="{% if active_page == 'dashboard' %}active{% endif %}"
+            href="{% if business.business_type == 'beauty' %}/whatsapp/dashboard{% else %}/whatsapp/dashboard/business/{{ business.slug }}{% endif %}"
+        >
+            📊 Dashboard
+        </a>
+
+        {% if business.business_type == 'beauty' %}
+            <a
+                class="{% if active_page == 'agenda' %}active{% endif %}"
+                href="/whatsapp/dashboard/agenda"
+            >
+                📅 Agenda
+            </a>
+
+            <a
+                class="{% if active_page == 'clients' %}active{% endif %}"
+                href="/whatsapp/dashboard/clients"
+            >
+                👥 Clientes
+            </a>
+
+            <a
+                class="{% if active_page == 'services' %}active{% endif %}"
+                href="/whatsapp/dashboard/services"
+            >
+                💅 Servicios
+            </a>
+
+            <a
+                class="{% if active_page == 'reports' %}active{% endif %}"
+                href="/whatsapp/dashboard/reports"
+            >
+                📈 Reportes
+            </a>
+
+            <a
+                class="{% if active_page == 'settings' %}active{% endif %}"
+                href="/whatsapp/dashboard/settings"
+            >
+                ⚙️ Configuración
+            </a>
+
+        {% elif business.business_type == 'food' %}
+            <a
+                class="{% if active_page == 'daily_menu' %}active{% endif %}"
+                href="#"
+            >
+                🍽️ Menú del día
+            </a>
+
+            <a
+                class="{% if active_page == 'orders' %}active{% endif %}"
+                href="#"
+            >
+                🛒 Pedidos
+            </a>
+
+            <a
+                class="{% if active_page == 'clients' %}active{% endif %}"
+                href="#"
+            >
+                👥 Clientes
+            </a>
+
+            <a
+                class="{% if active_page == 'campaigns' %}active{% endif %}"
+                href="#"
+            >
+                📣 Difusiones
+            </a>
+
+            <a
+                class="{% if active_page == 'reports' %}active{% endif %}"
+                href="#"
+            >
+                📈 Reportes
+            </a>
+
+            <a
+                class="{% if active_page == 'settings' %}active{% endif %}"
+                href="#"
+            >
+                ⚙️ Configuración
+            </a>
+
+        {% else %}
+            <a href="#">👥 Clientes</a>
+            <a href="#">⚙️ Configuración</a>
+        {% endif %}
     </nav>
 </aside>
