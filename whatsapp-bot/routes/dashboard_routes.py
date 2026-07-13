@@ -7,7 +7,7 @@ from services.whatsapp_service import (
 )
 from meta_errors import translate_meta_error
 from services.appointment_service import get_business_time_slots
-from services.business_service import get_default_business
+from services.business_service import get_business_by_slug, get_default_business
 import os
 import calendar
 
@@ -71,6 +71,22 @@ def dashboard_inbox():
 
     finally:
         conn.close()
+
+
+@dashboard_bp.get("/whatsapp/dashboard/business/<slug>")
+def dashboard_business_home(slug):
+    business = get_business_by_slug(slug)
+
+    if not business or not business["active"]:
+        return "Negocio no encontrado", 404
+
+    return render_template(
+        "business_home.html",
+        business=business,
+        page_title=business["business_name"],
+        page_subtitle="Panel de administración de VeldrikLabs",
+        active_page="dashboard",
+    )
 
 
 @dashboard_bp.get("/dashboard")

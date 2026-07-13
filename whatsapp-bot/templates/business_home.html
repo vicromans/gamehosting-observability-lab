@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}{{ business.business_name }} · VeldrikLabs{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<div class="card">
+    <h2>{{ business.business_name }}</h2>
+
+    <p><strong>Tipo:</strong> {{ business.business_type }}</p>
+    <p><strong>Teléfono:</strong> {{ business.phone_number or "Sin teléfono" }}</p>
+    <p><strong>Correo:</strong> {{ business.email or "Sin correo" }}</p>
+    <p><strong>Dirección:</strong> {{ business.address or "Sin dirección" }}</p>
+    <p>
+        <strong>Horario:</strong>
+        {{ business.opening_time or "Sin definir" }}
+        –
+        {{ business.closing_time or "Sin definir" }}
+    </p>
+    <p><strong>Días:</strong> {{ business.working_days or "Sin definir" }}</p>
+</div>
+{% endblock %}
