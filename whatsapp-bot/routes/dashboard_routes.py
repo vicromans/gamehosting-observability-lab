@@ -920,3 +920,95 @@ def update_appointment_status(appointment_id, action):
 
     return redirect("/whatsapp/dashboard")
 
+
+
+@dashboard_bp.get("/whatsapp/dashboard/services")
+def dashboard_services():
+    business = get_default_business()
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT *
+                FROM services
+                WHERE business_id = %s
+                ORDER BY service_name ASC
+                """,
+                (business["id"],),
+            )
+            items = cursor.fetchall()
+    finally:
+        conn.close()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="services",
+        page_title="Servicios",
+        page_description=f"Servicios configurados para {business['business_name']}.",
+        items=items,
+    )
+
+
+@dashboard_bp.get("/whatsapp/dashboard/reports")
+def dashboard_reports():
+    business = get_default_business()
+
+    return render_template(
+        "simple_page.html",
+        business=business,
+        active_page="reports",
+        page_title="Reportes",
+        page_description=(
+            "Próximamente: clientes nuevos, servicios más vendidos e ingresos."
+        ),
+        items=[],
+    )
+
+
+@dashboard_bp.route("/whatsapp/dashboard/settings", methods=["GET", "POST"])
+def dashboard_settings():
+    business = get_default_business()
+
+    if request.method == "POST":
+        business_name = request.form.get("business_name", "").strip()
+        business_type = request.form.get("business_type", "").strip()
+        owner_name = request.form.get("owner_name", "").strip()
+        phone_number = request.form.get("phone_number", "").strip()
+        active = 1 if request.form.get("active") == "1" else 0
+
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE businesses
+                    SET business_name = %s,
+                        business_type = %s,
+                        owner_name = %s,
+                        phone_number = %s,
+                        active = %s
+                    WHERE id = %s
+                    """,
+                    (
+                        business_name,
+                        business_type,
+                        owner_name,
+                        phone_number,
+                        active,
+                        business["id"],
+                    ),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+        business = get_default_business()
+
+    return render_template(
+        "settings.html",
+        business=business,
+        active_page="settings",
+    )
