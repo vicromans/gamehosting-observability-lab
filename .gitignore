@@ -1,3 +1,7 @@
 *.log
 .env
 __pycache__/
+
+# Imágenes recibidas por WhatsApp
+whatsapp-bot/data/whatsapp-media/*
+!whatsapp-bot/data/whatsapp-media/.gitkeep
