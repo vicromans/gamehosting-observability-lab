@@ -108,9 +108,24 @@ def build_reply(message, phone_number):
 
     catalog_item = detect_catalog_item(text)
     if catalog_item:
-        send_catalog_item(phone_number, catalog_item)
-        conversation_state[phone_number] = {"step": "confirm_booking", "service": catalog_item}
         item = get_catalog_item(catalog_item)
+
+        if not item:
+            return None
+
+        send_catalog_item(phone_number, catalog_item)
+
+        if item.get("type") == "info":
+            return (
+                "Cuando realices la transferencia, envíame aquí mismo "
+                "el comprobante para que Ana pueda revisarlo. 😊"
+            )
+
+        conversation_state[phone_number] = {
+            "step": "confirm_booking",
+            "service": catalog_item,
+        }
+
         title = item.get("title", catalog_item)
         return f"¿Quieres agendar una cita para {title}?"
 

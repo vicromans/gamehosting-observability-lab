@@ -6,6 +6,11 @@ IMAGE_NAME="veldriklabs-whatsapp-bot"
 TEST_NAME="veldriklabs-whatsapp-bot-test"
 TEST_PORT="5101"
 
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MEDIA_DIR="${APP_DIR}/data/whatsapp-media"
+
+mkdir -p "${MEDIA_DIR}"
+
 echo "== VeldrikLabs Safe Deploy =="
 
 echo "1) Verificando archivos..."
@@ -27,6 +32,7 @@ docker run -d \
   --name ${TEST_NAME} \
   --network gamehosting-observability-lab_default \
   --env-file .env \
+  -v "${MEDIA_DIR}:/app/static/uploads/whatsapp" \
   -p ${TEST_PORT}:5100 \
   ${IMAGE_NAME}:new
 
@@ -54,6 +60,7 @@ docker run -d \
   --network gamehosting-observability-lab_default \
   --env-file .env \
   --restart unless-stopped \
+  -v "${MEDIA_DIR}:/app/static/uploads/whatsapp" \
   -p 5100:5100 \
   ${IMAGE_NAME}:latest
 

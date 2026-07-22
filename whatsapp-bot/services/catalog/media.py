@@ -1,6 +1,7 @@
 CATALOG_MEDIA = {
     "pestañas": {
         "title": "Pestañas",
+        "type": "service",
         "category": "beauty",
         "keywords": ["pestaña", "pestañas", "lash", "lashes"],
         "image": "prices/PromoPestanas350.jpeg",
@@ -13,6 +14,7 @@ CATALOG_MEDIA = {
     },
     "uñas": {
         "title": "Uñas",
+        "type": "service",
         "category": "beauty",
         "keywords": ["uña", "uñas", "nail", "nails", "gel", "gelish", "semipermanente", "acrilico", "acrílico"],
         "image": "prices/Gelish01.jpeg",
@@ -22,4 +24,30 @@ CATALOG_MEDIA = {
         "duration_minutes": 120,
         "enabled": True,
     },
+    "deposito": {
+        "title": "Datos para anticipo",
+        "type": "info",
+        "category": "beauty",
+        "keywords": [
+            "anticipo",
+            "depósito",
+            "deposito",
+            "transferencia",
+            "transferir",
+            "clabe",
+            "mercado pago",
+            "mercadopago",
+            "datos bancarios",
+            "datos de pago",
+            "como deposito",
+            "cómo deposito"
+        ],
+        "image": "prices/DatosDepositoAuraBeauty.jpeg",
+        "caption": (
+            "💳 Aquí puedes realizar el anticipo de tu cita.\n\n"
+            "Cuando realices la transferencia envíame aquí mismo "
+            "el comprobante para que Ana pueda confirmar tu cita. 😊"
+        ),
+        "enabled": True,
+    }
 }
