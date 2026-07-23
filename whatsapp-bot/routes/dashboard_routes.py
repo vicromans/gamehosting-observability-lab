@@ -302,13 +302,20 @@ def customer_conversation(customer_id):
 
         cursor.execute("""
             SELECT
-                incoming_message, bot_reply,
-                detected_intent,
-                created_at
-            FROM whatsapp_messages
-            WHERE business_id = 1
-              AND phone_number = %s
-            ORDER BY created_at ASC
+                wm.id,
+                wm.incoming_message,
+                wm.bot_reply,
+                wm.detected_intent,
+                wm.created_at,
+                media.media_type,
+                media.mime_type,
+                media.local_path
+            FROM whatsapp_messages wm
+            LEFT JOIN whatsapp_media media
+                ON media.message_id = wm.id
+            WHERE wm.business_id = 1
+              AND wm.phone_number = %s
+            ORDER BY wm.created_at ASC
         """, (customer["phone_number"],))
 
         messages = cursor.fetchall()
@@ -416,14 +423,20 @@ def customer_messages_partial(customer_id):
 
         cursor.execute("""
             SELECT
-                incoming_message,
-                bot_reply,
-                detected_intent,
-                created_at
-            FROM whatsapp_messages
-            WHERE business_id = 1
-              AND phone_number = %s
-            ORDER BY created_at ASC
+                wm.id,
+                wm.incoming_message,
+                wm.bot_reply,
+                wm.detected_intent,
+                wm.created_at,
+                media.media_type,
+                media.mime_type,
+                media.local_path
+            FROM whatsapp_messages wm
+            LEFT JOIN whatsapp_media media
+                ON media.message_id = wm.id
+            WHERE wm.business_id = 1
+              AND wm.phone_number = %s
+            ORDER BY wm.created_at ASC
         """, (customer["phone_number"],))
 
         messages = cursor.fetchall()

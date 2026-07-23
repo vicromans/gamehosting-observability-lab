@@ -2,7 +2,35 @@
     {% if m.incoming_message %}
     <div class="message customer">
         <div class="message-meta">{{ m.created_at }} · Cliente</div>
-        <div>{{ m.incoming_message }}</div>
+
+        {% if m.local_path %}
+            <a
+                href="/static/{{ m.local_path }}"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <img
+                    src="/static/{{ m.local_path }}"
+                    alt="Imagen enviada por el cliente"
+                    loading="lazy"
+                    style="
+                        display: block;
+                        max-width: 260px;
+                        max-height: 320px;
+                        margin-top: 8px;
+                        border-radius: 10px;
+                        object-fit: cover;
+                        cursor: pointer;
+                    "
+                >
+            </a>
+
+            {% if m.incoming_message and m.incoming_message != "[Imagen recibida]" %}
+                <div style="margin-top: 8px;">{{ m.incoming_message }}</div>
+            {% endif %}
+        {% else %}
+            <div>{{ m.incoming_message }}</div>
+        {% endif %}
     </div>
     {% endif %}
 
