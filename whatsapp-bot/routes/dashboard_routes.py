@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, render_template, request, redirect
+from flask import Blueprint, jsonify, render_template, request, redirect, send_from_directory
 
 from database.connection import get_db_connection
 from services.whatsapp_service import (
@@ -13,6 +13,10 @@ import calendar
 
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+WHATSAPP_MEDIA_DIR = os.getenv(
+    "WHATSAPP_MEDIA_DIR",
+    "/app/static/uploads/whatsapp",
+)
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -401,6 +405,12 @@ def send_customer_template(customer_id):
     finally:
         conn.close()
 
+@dashboard_bp.get("/whatsapp/media/<path:filename>")
+def serve_whatsapp_media(filename):
+    return send_from_directory(
+        WHATSAPP_MEDIA_DIR,
+        filename,
+    )
 
 @dashboard_bp.route("/whatsapp/dashboard/customer/<int:customer_id>/messages")
 def customer_messages_partial(customer_id):
@@ -441,36 +451,10 @@ def customer_messages_partial(customer_id):
 
         messages = cursor.fetchall()
 
-        html = ""
-
-        for m in messages:
-            created_at = m["created_at"]
-            incoming = m["incoming_message"]
-            bot_reply = m["bot_reply"]
-            intent = m["detected_intent"]
-
-            if incoming:
-                html += f"""
-                <div class="message customer">
-                    <strong>{created_at}</strong><br>
-                    <strong>Cliente:</strong> {incoming}<br>
-                </div>
-                """
-
-            if bot_reply:
-                label = "Bot"
-
-                if intent == "human_reply":
-                    label = "Asesora"
-
-                html += f"""
-                <div class="message bot">
-                    <strong>{created_at}</strong><br>
-                    <strong>{label}:</strong> {bot_reply}
-                </div>
-                """
-
-        return html
+        return render_template(
+            "components/chat_messages.html",
+            messages=messages,
+        )
 
     finally:
         conn.close()

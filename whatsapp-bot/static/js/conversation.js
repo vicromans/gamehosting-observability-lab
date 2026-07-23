@@ -55,7 +55,8 @@ function setupChatAutoRefresh() {
 
     async function refreshMessages() {
         try {
-            const currentScrollBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight;
+            const currentScrollBottom =
+                chat.scrollHeight - chat.scrollTop - chat.clientHeight;
             const shouldStickToBottom = currentScrollBottom < 80;
 
             const response = await fetch(messagesUrl, {
@@ -68,12 +69,28 @@ function setupChatAutoRefresh() {
 
             const html = await response.text();
 
-            if (html && html !== chat.innerHTML) {
-                chat.innerHTML = html;
+            if (!html) {
+                return;
+            }
 
-                if (shouldStickToBottom) {
-                    scrollChatToBottom();
-                }
+            const normalizedContainer = document.createElement("div");
+            normalizedContainer.innerHTML = html;
+            const normalizedHtml = normalizedContainer.innerHTML;
+
+            if (normalizedHtml === chat.innerHTML) {
+                return;
+            }
+
+            const previousScrollHeight = chat.scrollHeight;
+            const previousScrollTop = chat.scrollTop;
+
+            chat.innerHTML = normalizedHtml;
+
+            if (shouldStickToBottom) {
+                scrollChatToBottom();
+            } else {
+                const addedHeight = chat.scrollHeight - previousScrollHeight;
+                chat.scrollTop = previousScrollTop + addedHeight;
             }
         } catch (error) {
             console.log("Chat refresh error:", error);
