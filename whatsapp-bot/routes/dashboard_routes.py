@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, render_template, request, redirect, send_from_directory
+from flask import jsonify, render_template, request, redirect, send_from_directory
 
 from database.connection import get_db_connection
 from services.whatsapp_service import (
@@ -20,7 +20,7 @@ WHATSAPP_MEDIA_DIR = os.getenv(
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-dashboard_bp = Blueprint("dashboard", __name__)
+from routes.dashboard import dashboard_bp
 
 
 @dashboard_bp.get("/health")
@@ -1009,3 +1009,6 @@ def dashboard_settings():
         business=business,
         active_page="settings",
     )
+
+# Importa los módulos separados para registrar sus rutas.
+from routes.dashboard import daily_menu, food_catalog  # noqa: E402,F401

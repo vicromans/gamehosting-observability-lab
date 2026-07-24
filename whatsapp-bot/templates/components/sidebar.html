@@ -49,9 +49,16 @@
         {% elif business.business_type == 'food' %}
             <a
                 class="{% if active_page == 'daily_menu' %}active{% endif %}"
-                href="#"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu"
             >
                 🍽️ Menú del día
+            </a>
+
+            <a
+                class="{% if active_page == 'food_catalog' %}active{% endif %}"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/food-catalog"
+            >
+                📋 Catálogo de platillos
             </a>
 
             <a

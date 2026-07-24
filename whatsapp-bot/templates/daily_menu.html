@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Menú del día · {{ business.business_name }}{% endblock %}
+
+{% block styles %}
+<style>
+    .menu-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .menu-date-form {
+        display: flex;
+        align-items: end;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .menu-date-form label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-weight: 600;
+    }
+
+    .menu-date-form input {
+        min-height: 42px;
+        padding: 8px 12px;
+        border: 1px solid #d7dce5;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .menu-date-form button,
+    .menu-action {
+        min-height: 42px;
+        padding: 9px 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .menu-status {
+        display: inline-block;
+        margin-bottom: 12px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #eef2ff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+
+    .menu-intro {
+        color: #4b5563;
+        white-space: pre-line;
+    }
+
+    .menu-items {
+        display: grid;
+        gap: 14px;
+        margin-top: 18px;
+    }
+
+    .menu-item {
+        padding: 16px;
+        border: 1px solid #e2e6ed;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .menu-item-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .menu-item h3 {
+        margin: 0;
+    }
+
+    .menu-item-category,
+    .menu-item-description {
+        margin: 8px 0 0;
+        color: #667085;
+    }
+
+    .menu-item-price {
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .menu-empty {
+        padding: 28px;
+        border: 1px dashed #c9d0dc;
+        border-radius: 10px;
+        text-align: center;
+        color: #667085;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<div class="menu-toolbar">
+    <form
+        class="menu-date-form"
+        method="get"
+        action="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu"
+    >
+        <label>
+            Fecha del menú
+            <input
+                type="date"
+                name="date"
+                value="{{ menu_date.isoformat() }}"
+            >
+        </label>
+
+        <button type="submit">Consultar</button>
+
+        {% if menu_date != today %}
+            <a
+                class="menu-action"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu"
+            >
+                Hoy
+            </a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="card">
+    {% if menu %}
+        <span class="menu-status">{{ menu.status }}</span>
+
+        <h2>{{ menu.title or "Menú del día" }}</h2>
+
+        {% if menu.intro_text %}
+            <p class="menu-intro">{{ menu.intro_text }}</p>
+        {% endif %}
+
+        {% if menu.image_url %}
+            <p>
+                <a href="{{ menu.image_url }}" target="_blank">
+                    Ver imagen del menú
+                </a>
+            </p>
+        {% endif %}
+
+        <h3>Platillos</h3>
+
+        {% if menu["items"] %}
+            <div class="menu-items">
+                {% for item in menu["items"] %}
+                    <article class="menu-item">
+                        <div class="menu-item-header">
+                            <div>
+                                <h3>{{ item.item_name }}</h3>
+
+                                {% if item.category %}
+                                    <p class="menu-item-category">
+                                        {{ item.category }}
+                                    </p>
+                                {% endif %}
+                            </div>
+
+                            {% if item.price is not none %}
+                                <div class="menu-item-price">
+                                    ${{ "%.2f"|format(item.price) }}
+                                    {{ item.currency }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {% if item.description %}
+                            <p class="menu-item-description">
+                                {{ item.description }}
+                            </p>
+                        {% endif %}
+
+                        {% if not item.available %}
+                            <p><strong>No disponible</strong></p>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="menu-empty">
+                Este menú todavía no tiene platillos.
+            </div>
+        {% endif %}
+    {% else %}
+        <h2>Menú del {{ menu_date.strftime("%d/%m/%Y") }}</h2>
+
+        <div class="menu-empty">
+            No existe un menú registrado para esta fecha.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
