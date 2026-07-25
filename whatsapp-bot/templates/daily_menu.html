@@ -105,11 +105,110 @@
         text-align: center;
         color: #667085;
     }
+
+
+    .menu-success {
+        margin-bottom: 18px;
+        padding: 12px 16px;
+        border: 1px solid #a7d7b5;
+        border-radius: 9px;
+        background: #edf9f0;
+    }
+
+    .catalog-builder {
+        margin-top: 20px;
+    }
+
+    .catalog-builder h2 {
+        margin-bottom: 6px;
+    }
+
+    .catalog-builder-intro {
+        margin-top: 0;
+        color: #667085;
+    }
+
+    .catalog-selector {
+        display: grid;
+        gap: 12px;
+        margin: 18px 0;
+    }
+
+    .catalog-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid #e2e6ed;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .catalog-option input {
+        width: 18px;
+        height: 18px;
+        margin-top: 3px;
+    }
+
+    .catalog-option-content {
+        flex: 1;
+    }
+
+    .catalog-option-name {
+        display: block;
+        font-weight: 700;
+    }
+
+    .catalog-option-category,
+    .catalog-option-description,
+    .catalog-option-price {
+        display: block;
+        margin-top: 4px;
+        color: #667085;
+    }
+
+    .catalog-option-added {
+        opacity: 0.62;
+        background: #f7f8fa;
+    }
+
+    .catalog-option-added-badge {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #e5e7eb;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .catalog-submit {
+        min-height: 42px;
+        padding: 9px 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 {% include "components/topbar.html" with context %}
+
+{% if added_count > 0 %}
+    <div class="menu-success">
+        Se agregaron {{ added_count }}
+        {% if added_count == 1 %}
+            platillo
+        {% else %}
+            platillos
+        {% endif %}
+        al menú.
+    </div>
+{% endif %}
 
 <div class="menu-toolbar">
     <form
@@ -204,6 +303,90 @@
 
         <div class="menu-empty">
             No existe un menú registrado para esta fecha.
+        </div>
+    {% endif %}
+</div>
+
+<div class="card catalog-builder">
+    <h2>Agregar platillos del catálogo</h2>
+
+    <p class="catalog-builder-intro">
+        Selecciona los platillos que estarán disponibles en esta fecha.
+    </p>
+
+    {% if catalog_items %}
+        <form
+            method="post"
+            action="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu/add-items"
+        >
+            <input
+                type="hidden"
+                name="menu_date"
+                value="{{ menu_date.isoformat() }}"
+            >
+
+            <div class="catalog-selector">
+                {% for catalog_item in catalog_items %}
+                    <label
+                        class="catalog-option{% if catalog_item.already_added %} catalog-option-added{% endif %}"
+                    >
+                        <input
+                            type="checkbox"
+                            name="catalog_item_ids"
+                            value="{{ catalog_item.id }}"
+                            {% if catalog_item.already_added %}disabled{% endif %}
+                        >
+
+                        <span class="catalog-option-content">
+                            <span class="catalog-option-name">
+                                {{ catalog_item.item_name }}
+                            </span>
+
+                            {% if catalog_item.category %}
+                                <span class="catalog-option-category">
+                                    {{ catalog_item.category }}
+                                </span>
+                            {% endif %}
+
+                            {% if catalog_item.description %}
+                                <span class="catalog-option-description">
+                                    {{ catalog_item.description }}
+                                </span>
+                            {% endif %}
+
+                            {% if catalog_item.available_individually %}
+                                <span class="catalog-option-price">
+                                    Precio individual:
+                                    ${{ "%.2f"|format(catalog_item.individual_price) }}
+                                    {{ catalog_item.currency }}
+                                </span>
+                            {% endif %}
+
+                            {% if catalog_item.has_surcharge %}
+                                <span class="catalog-option-price">
+                                    Costo adicional:
+                                    ${{ "%.2f"|format(catalog_item.surcharge_amount) }}
+                                    {{ catalog_item.currency }}
+                                </span>
+                            {% endif %}
+
+                            {% if catalog_item.already_added %}
+                                <span class="catalog-option-added-badge">
+                                    Ya está en el menú
+                                </span>
+                            {% endif %}
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+
+            <button class="catalog-submit" type="submit">
+                Agregar seleccionados
+            </button>
+        </form>
+    {% else %}
+        <div class="menu-empty">
+            No hay platillos activos en el catálogo.
         </div>
     {% endif %}
 </div>
