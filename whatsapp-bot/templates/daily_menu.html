@@ -98,6 +98,30 @@
         white-space: nowrap;
     }
 
+    .menu-item-actions {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid #edf0f4;
+    }
+
+    .menu-remove-form {
+        margin: 0;
+    }
+
+    .menu-remove-button {
+        padding: 8px 12px;
+        border: 1px solid #dc2626;
+        border-radius: 8px;
+        background: #fff;
+        color: #dc2626;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .menu-remove-button:hover {
+        background: #fef2f2;
+    }
+
     .menu-empty {
         padding: 28px;
         border: 1px dashed #c9d0dc;
@@ -210,6 +234,12 @@
     </div>
 {% endif %}
 
+{% if removed %}
+    <div class="menu-success">
+        El platillo fue retirado del menú.
+    </div>
+{% endif %}
+
 <div class="menu-toolbar">
     <form
         class="menu-date-form"
@@ -290,6 +320,33 @@
                         {% if not item.available %}
                             <p><strong>No disponible</strong></p>
                         {% endif %}
+                        <div class="menu-item-actions">
+                            <form
+                                class="menu-remove-form"
+                                method="post"
+                                action="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu/remove-item"
+                                onsubmit="return confirm('¿Quitar este platillo del menú del día?');"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="menu_date"
+                                    value="{{ menu_date.isoformat() }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="menu_item_id"
+                                    value="{{ item.id }}"
+                                >
+
+                                <button
+                                    class="menu-remove-button"
+                                    type="submit"
+                                >
+                                    Quitar del menú
+                                </button>
+                            </form>
+                        </div>
                     </article>
                 {% endfor %}
             </div>

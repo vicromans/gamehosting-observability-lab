@@ -206,6 +206,29 @@ def set_menu_item_availability(item_id, available):
         connection.close()
 
 
+def remove_menu_item(item_id):
+    """Remove one item from a daily menu."""
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                DELETE FROM daily_menu_items
+                WHERE id = %s
+                LIMIT 1
+                """,
+                (item_id,),
+            )
+            deleted = cursor.rowcount
+
+        connection.commit()
+        return deleted == 1
+
+    finally:
+        connection.close()
+
+
 def add_catalog_items_to_menu(
     business_id,
     menu_date,

@@ -10,6 +10,7 @@ from services.food.catalog_service import list_catalog_items
 from services.food.menu_service import (
     add_catalog_items_to_menu,
     get_menu_by_date,
+    remove_menu_item,
 )
 
 
@@ -94,6 +95,8 @@ def dashboard_daily_menu(slug):
     except ValueError:
         added_count = 0
 
+    removed = request.args.get("removed") == "1"
+
     return render_template(
         "daily_menu.html",
         business=business,
@@ -102,6 +105,7 @@ def dashboard_daily_menu(slug):
         today=today,
         catalog_items=catalog_items,
         added_count=added_count,
+        removed=removed,
         active_page="daily_menu",
         page_title="Menú del día",
         page_subtitle="Consulta y administración del menú diario",
@@ -134,6 +138,53 @@ def dashboard_daily_menu_add_items(slug):
         {
             "date": menu_date.isoformat(),
             "added": added_count,
+        }
+    )
+
+    return redirect(
+        f"/whatsapp/dashboard/business/{slug}/daily-menu"
+        f"?{query_string}"
+    )
+
+
+@dashboard_bp.post(
+    "/whatsapp/dashboard/business/<slug>/daily-menu/remove-item"
+)
+def dashboard_daily_menu_remove_item(slug):
+    business, error_response = _get_food_business(slug)
+
+    if error_response:
+        return error_response
+
+    menu_date = _parse_menu_date(request.form.get("menu_date"))
+
+    if menu_date is None:
+        return "Fecha inválida. Usa el formato AAAA-MM-DD.", 400
+
+    try:
+        menu_item_id = int(request.form.get("menu_item_id", ""))
+    except (TypeError, ValueError):
+        return "Platillo inválido.", 400
+
+    menu = get_menu_by_date(business["id"], menu_date)
+
+    if not menu:
+        return "Menú no encontrado.", 404
+
+    valid_item_ids = {
+        int(item["id"])
+        for item in menu.get("items", [])
+    }
+
+    if menu_item_id not in valid_item_ids:
+        return "El platillo no pertenece a este menú.", 404
+
+    removed = remove_menu_item(menu_item_id)
+
+    query_string = urlencode(
+        {
+            "date": menu_date.isoformat(),
+            "removed": 1 if removed else 0,
         }
     )
 
