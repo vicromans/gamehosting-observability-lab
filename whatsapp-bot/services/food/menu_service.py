@@ -229,6 +229,51 @@ def remove_menu_item(item_id):
         connection.close()
 
 
+def set_menu_status(menu_id, status):
+    """Set one daily menu as draft or published."""
+    if status not in {"draft", "published"}:
+        raise ValueError("Invalid daily menu status")
+
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE daily_menus
+                SET
+                    status = %s,
+                    published_at = CASE
+                        WHEN %s = 'published'
+                            THEN COALESCE(
+                                published_at,
+                                CURRENT_TIMESTAMP
+                            )
+                        ELSE NULL
+                    END,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                LIMIT 1
+                """,
+                (
+                    status,
+                    status,
+                    menu_id,
+                ),
+            )
+            updated = cursor.rowcount
+
+        connection.commit()
+        return updated == 1
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
 def add_catalog_items_to_menu(
     business_id,
     menu_date,

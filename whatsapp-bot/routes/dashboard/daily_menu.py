@@ -11,6 +11,7 @@ from services.food.menu_service import (
     add_catalog_items_to_menu,
     get_menu_by_date,
     remove_menu_item,
+    set_menu_status,
 )
 
 
@@ -96,6 +97,8 @@ def dashboard_daily_menu(slug):
         added_count = 0
 
     removed = request.args.get("removed") == "1"
+    published = request.args.get("published") == "1"
+    returned_to_draft = request.args.get("draft") == "1"
 
     return render_template(
         "daily_menu.html",
@@ -106,6 +109,8 @@ def dashboard_daily_menu(slug):
         catalog_items=catalog_items,
         added_count=added_count,
         removed=removed,
+        published=published,
+        returned_to_draft=returned_to_draft,
         active_page="daily_menu",
         page_title="Menú del día",
         page_subtitle="Consulta y administración del menú diario",
@@ -125,6 +130,14 @@ def dashboard_daily_menu_add_items(slug):
 
     if menu_date is None:
         return "Fecha inválida. Usa el formato AAAA-MM-DD.", 400
+
+    menu = get_menu_by_date(business["id"], menu_date)
+
+    if menu and menu.get("status") == "published":
+        return (
+            "El menú está publicado. Vuelve a borrador antes de modificarlo.",
+            409,
+        )
 
     catalog_item_ids = request.form.getlist("catalog_item_ids")
 
@@ -171,6 +184,12 @@ def dashboard_daily_menu_remove_item(slug):
     if not menu:
         return "Menú no encontrado.", 404
 
+    if menu.get("status") == "published":
+        return (
+            "El menú está publicado. Vuelve a borrador antes de modificarlo.",
+            409,
+        )
+
     valid_item_ids = {
         int(item["id"])
         for item in menu.get("items", [])
@@ -185,6 +204,49 @@ def dashboard_daily_menu_remove_item(slug):
         {
             "date": menu_date.isoformat(),
             "removed": 1 if removed else 0,
+        }
+    )
+
+    return redirect(
+        f"/whatsapp/dashboard/business/{slug}/daily-menu"
+        f"?{query_string}"
+    )
+
+
+@dashboard_bp.post(
+    "/whatsapp/dashboard/business/<slug>/daily-menu/status"
+)
+def dashboard_daily_menu_status(slug):
+    business, error_response = _get_food_business(slug)
+
+    if error_response:
+        return error_response
+
+    menu_date = _parse_menu_date(request.form.get("menu_date"))
+
+    if menu_date is None:
+        return "Fecha inválida. Usa el formato AAAA-MM-DD.", 400
+
+    new_status = (request.form.get("status") or "").strip()
+
+    if new_status not in {"draft", "published"}:
+        return "Estado de menú inválido.", 400
+
+    menu = get_menu_by_date(business["id"], menu_date)
+
+    if not menu:
+        return "Menú no encontrado.", 404
+
+    if new_status == "published" and not menu.get("items"):
+        return "No puedes publicar un menú sin platillos.", 400
+
+    set_menu_status(menu["id"], new_status)
+
+    query_string = urlencode(
+        {
+            "date": menu_date.isoformat(),
+            "published": 1 if new_status == "published" else 0,
+            "draft": 1 if new_status == "draft" else 0,
         }
     )
 

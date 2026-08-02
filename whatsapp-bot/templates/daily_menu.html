@@ -216,6 +216,74 @@
         font-weight: 600;
         cursor: pointer;
     }
+.menu-status-draft,
+.menu-status-published {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.menu-status-draft {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.menu-status-published {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.menu-publish-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0;
+    padding: 16px;
+    border: 1px solid #dbe2ea;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.menu-publish-form {
+    margin: 0;
+}
+
+.menu-publish-button {
+    min-height: 42px;
+    padding: 9px 16px;
+    border: 0;
+    border-radius: 8px;
+    background: #16a34a;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.menu-draft-button {
+    min-height: 42px;
+    padding: 9px 16px;
+    border: 1px solid #d97706;
+    border-radius: 8px;
+    background: #fff;
+    color: #92400e;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.menu-locked-message {
+    margin: 16px 0;
+    padding: 14px;
+    border-left: 4px solid #16a34a;
+    border-radius: 8px;
+    background: #f0fdf4;
+    color: #166534;
+}
 </style>
 {% endblock %}
 
@@ -237,6 +305,18 @@
 {% if removed %}
     <div class="menu-success">
         El platillo fue retirado del menú.
+    </div>
+{% endif %}
+
+{% if published %}
+    <div class="menu-success">
+        El menú fue publicado correctamente.
+    </div>
+{% endif %}
+
+{% if returned_to_draft %}
+    <div class="menu-success">
+        El menú volvió a borrador y ya puede editarse.
     </div>
 {% endif %}
 
@@ -270,7 +350,15 @@
 
 <div class="card">
     {% if menu %}
-        <span class="menu-status">{{ menu.status }}</span>
+        {% if menu.status == "published" %}
+            <span class="menu-status-published">
+                🟢 Publicado
+            </span>
+        {% else %}
+            <span class="menu-status-draft">
+                🟡 Borrador
+            </span>
+        {% endif %}
 
         <h2>{{ menu.title or "Menú del día" }}</h2>
 
@@ -285,6 +373,86 @@
                 </a>
             </p>
         {% endif %}
+
+<div class="menu-publish-panel">
+
+    {% if menu.status == "published" %}
+
+        <div>
+            <strong>Este es el menú oficial del día.</strong>
+
+            <div>
+                Para modificarlo, primero debes volver a borrador.
+            </div>
+        </div>
+
+        <form
+            class="menu-publish-form"
+            method="post"
+            action="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu/status"
+            onsubmit="return confirm('¿Volver este menú a borrador?');"
+        >
+            <input
+                type="hidden"
+                name="menu_date"
+                value="{{ menu_date.isoformat() }}"
+            >
+
+            <input
+                type="hidden"
+                name="status"
+                value="draft"
+            >
+
+            <button
+                class="menu-draft-button"
+                type="submit"
+            >
+                Volver a borrador
+            </button>
+
+        </form>
+
+    {% else %}
+
+        <div>
+            <strong>Revisa el menú antes de publicarlo.</strong>
+
+            <div>
+                Una vez publicado quedará bloqueado para evitar cambios accidentales.
+            </div>
+        </div>
+
+        <form
+            class="menu-publish-form"
+            method="post"
+            action="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu/status"
+            onsubmit="return confirm('¿Publicar este menú?');"
+        >
+            <input
+                type="hidden"
+                name="menu_date"
+                value="{{ menu_date.isoformat() }}"
+            >
+
+            <input
+                type="hidden"
+                name="status"
+                value="published"
+            >
+
+            <button
+                class="menu-publish-button"
+                type="submit"
+            >
+                Publicar menú
+            </button>
+
+        </form>
+
+    {% endif %}
+
+</div>
 
         <h3>Platillos</h3>
 
@@ -320,33 +488,35 @@
                         {% if not item.available %}
                             <p><strong>No disponible</strong></p>
                         {% endif %}
-                        <div class="menu-item-actions">
-                            <form
-                                class="menu-remove-form"
-                                method="post"
-                                action="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu/remove-item"
-                                onsubmit="return confirm('¿Quitar este platillo del menú del día?');"
-                            >
-                                <input
-                                    type="hidden"
-                                    name="menu_date"
-                                    value="{{ menu_date.isoformat() }}"
+                        {% if menu.status != "published" %}
+                            <div class="menu-item-actions">
+                                <form
+                                    class="menu-remove-form"
+                                    method="post"
+                                    action="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu/remove-item"
+                                    onsubmit="return confirm('¿Quitar este platillo del menú del día?');"
                                 >
+                                    <input
+                                        type="hidden"
+                                        name="menu_date"
+                                        value="{{ menu_date.isoformat() }}"
+                                    >
 
-                                <input
-                                    type="hidden"
-                                    name="menu_item_id"
-                                    value="{{ item.id }}"
-                                >
+                                    <input
+                                        type="hidden"
+                                        name="menu_item_id"
+                                        value="{{ item.id }}"
+                                    >
 
-                                <button
-                                    class="menu-remove-button"
-                                    type="submit"
-                                >
-                                    Quitar del menú
-                                </button>
-                            </form>
-                        </div>
+                                    <button
+                                        class="menu-remove-button"
+                                        type="submit"
+                                    >
+                                        Quitar del menú
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
                     </article>
                 {% endfor %}
             </div>
@@ -364,87 +534,94 @@
     {% endif %}
 </div>
 
-<div class="card catalog-builder">
-    <h2>Agregar platillos del catálogo</h2>
+{% if not menu or menu.status != "published" %}
+    <div class="card catalog-builder">
+        <h2>Agregar platillos del catálogo</h2>
 
-    <p class="catalog-builder-intro">
-        Selecciona los platillos que estarán disponibles en esta fecha.
-    </p>
+        <p class="catalog-builder-intro">
+            Selecciona los platillos que estarán disponibles en esta fecha.
+        </p>
 
-    {% if catalog_items %}
-        <form
-            method="post"
-            action="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu/add-items"
-        >
-            <input
-                type="hidden"
-                name="menu_date"
-                value="{{ menu_date.isoformat() }}"
+        {% if catalog_items %}
+            <form
+                method="post"
+                action="/whatsapp/dashboard/business/{{ business.slug }}/daily-menu/add-items"
             >
+                <input
+                    type="hidden"
+                    name="menu_date"
+                    value="{{ menu_date.isoformat() }}"
+                >
 
-            <div class="catalog-selector">
-                {% for catalog_item in catalog_items %}
-                    <label
-                        class="catalog-option{% if catalog_item.already_added %} catalog-option-added{% endif %}"
-                    >
-                        <input
-                            type="checkbox"
-                            name="catalog_item_ids"
-                            value="{{ catalog_item.id }}"
-                            {% if catalog_item.already_added %}disabled{% endif %}
+                <div class="catalog-selector">
+                    {% for catalog_item in catalog_items %}
+                        <label
+                            class="catalog-option{% if catalog_item.already_added %} catalog-option-added{% endif %}"
                         >
+                            <input
+                                type="checkbox"
+                                name="catalog_item_ids"
+                                value="{{ catalog_item.id }}"
+                                {% if catalog_item.already_added %}disabled{% endif %}
+                            >
 
-                        <span class="catalog-option-content">
-                            <span class="catalog-option-name">
-                                {{ catalog_item.item_name }}
+                            <span class="catalog-option-content">
+                                <span class="catalog-option-name">
+                                    {{ catalog_item.item_name }}
+                                </span>
+
+                                {% if catalog_item.category %}
+                                    <span class="catalog-option-category">
+                                        {{ catalog_item.category }}
+                                    </span>
+                                {% endif %}
+
+                                {% if catalog_item.description %}
+                                    <span class="catalog-option-description">
+                                        {{ catalog_item.description }}
+                                    </span>
+                                {% endif %}
+
+                                {% if catalog_item.available_individually %}
+                                    <span class="catalog-option-price">
+                                        Precio individual:
+                                        ${{ "%.2f"|format(catalog_item.individual_price) }}
+                                        {{ catalog_item.currency }}
+                                    </span>
+                                {% endif %}
+
+                                {% if catalog_item.has_surcharge %}
+                                    <span class="catalog-option-price">
+                                        Costo adicional:
+                                        ${{ "%.2f"|format(catalog_item.surcharge_amount) }}
+                                        {{ catalog_item.currency }}
+                                    </span>
+                                {% endif %}
+
+                                {% if catalog_item.already_added %}
+                                    <span class="catalog-option-added-badge">
+                                        Ya está en el menú
+                                    </span>
+                                {% endif %}
                             </span>
+                        </label>
+                    {% endfor %}
+                </div>
 
-                            {% if catalog_item.category %}
-                                <span class="catalog-option-category">
-                                    {{ catalog_item.category }}
-                                </span>
-                            {% endif %}
-
-                            {% if catalog_item.description %}
-                                <span class="catalog-option-description">
-                                    {{ catalog_item.description }}
-                                </span>
-                            {% endif %}
-
-                            {% if catalog_item.available_individually %}
-                                <span class="catalog-option-price">
-                                    Precio individual:
-                                    ${{ "%.2f"|format(catalog_item.individual_price) }}
-                                    {{ catalog_item.currency }}
-                                </span>
-                            {% endif %}
-
-                            {% if catalog_item.has_surcharge %}
-                                <span class="catalog-option-price">
-                                    Costo adicional:
-                                    ${{ "%.2f"|format(catalog_item.surcharge_amount) }}
-                                    {{ catalog_item.currency }}
-                                </span>
-                            {% endif %}
-
-                            {% if catalog_item.already_added %}
-                                <span class="catalog-option-added-badge">
-                                    Ya está en el menú
-                                </span>
-                            {% endif %}
-                        </span>
-                    </label>
-                {% endfor %}
+                <button class="catalog-submit" type="submit">
+                    Agregar seleccionados
+                </button>
+            </form>
+        {% else %}
+            <div class="menu-empty">
+                No hay platillos activos en el catálogo.
             </div>
-
-            <button class="catalog-submit" type="submit">
-                Agregar seleccionados
-            </button>
-        </form>
-    {% else %}
-        <div class="menu-empty">
-            No hay platillos activos en el catálogo.
-        </div>
-    {% endif %}
-</div>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="menu-locked-message">
+        Este menú está publicado. Para agregar o quitar platillos,
+        primero debes volver a borrador.
+    </div>
+{% endif %}
 {% endblock %}
