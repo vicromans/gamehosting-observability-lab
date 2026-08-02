@@ -96,6 +96,56 @@
                 ⚙️ Configuración
             </a>
 
+        {% elif business.business_type == 'wellness' %}
+            <a
+                class="{% if active_page == 'sessions' %}active{% endif %}"
+                href="#"
+            >
+                📅 Sesiones
+            </a>
+
+            <a
+                class="{% if active_page == 'events' %}active{% endif %}"
+                href="#"
+            >
+                🌿 Eventos y Talleres
+            </a>
+
+            <a
+                class="{% if active_page == 'academy' %}active{% endif %}"
+                href="#"
+            >
+                🎓 Academia
+            </a>
+
+            <a
+                class="{% if active_page == 'clients' %}active{% endif %}"
+                href="#"
+            >
+                👥 Clientes
+            </a>
+
+            <a
+                class="{% if active_page == 'conversations' %}active{% endif %}"
+                href="#"
+            >
+                💬 Conversaciones
+            </a>
+
+            <a
+                class="{% if active_page == 'reports' %}active{% endif %}"
+                href="#"
+            >
+                📈 Reportes
+            </a>
+
+            <a
+                class="{% if active_page == 'settings' %}active{% endif %}"
+                href="#"
+            >
+                ⚙️ Configuración
+            </a>
+
         {% else %}
             <a href="#">👥 Clientes</a>
             <a href="#">⚙️ Configuración</a>

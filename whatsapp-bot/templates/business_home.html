@@ -5,6 +5,123 @@
 {% block content %}
 {% include "components/topbar.html" with context %}
 
+{% if business.business_type == "wellness" %}
+
+<style>
+    .wellness-intro {
+        margin-bottom: 22px;
+    }
+
+    .wellness-intro h2 {
+        margin-bottom: 8px;
+    }
+
+    .wellness-intro p {
+        max-width: 850px;
+        color: #64748b;
+        line-height: 1.6;
+    }
+
+    .wellness-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 18px;
+        margin-top: 20px;
+    }
+
+    .wellness-module {
+        padding: 22px;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #ffffff;
+    }
+
+    .wellness-module-icon {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+    }
+
+    .wellness-module h3 {
+        margin: 0 0 8px 0;
+    }
+
+    .wellness-module p {
+        margin: 0;
+        color: #64748b;
+        line-height: 1.5;
+    }
+
+    .wellness-status {
+        display: inline-block;
+        margin-top: 14px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+</style>
+
+<div class="card wellness-intro">
+    <h2>{{ business.business_name }}</h2>
+
+    <p>
+        {{ business.description }}
+    </p>
+
+    <p>
+        <strong>VeldrikLabs está preparando este espacio para administrar
+        sesiones, eventos, formación digital y relación con clientes
+        desde una sola plataforma.</strong>
+    </p>
+</div>
+
+<div class="wellness-grid">
+
+    <div class="wellness-module">
+        <div class="wellness-module-icon">📅</div>
+        <h3>Sesiones</h3>
+        <p>
+            Agenda y seguimiento administrativo de sesiones individuales.
+        </p>
+        <span class="wellness-status">En preparación</span>
+    </div>
+
+    <div class="wellness-module">
+        <div class="wellness-module-icon">🌿</div>
+        <h3>Eventos y Talleres</h3>
+        <p>
+            Constelaciones, masterclasses, retos, talleres y retiros,
+            presenciales o en línea.
+        </p>
+        <span class="wellness-status">Próximo módulo</span>
+    </div>
+
+    <div class="wellness-module">
+        <div class="wellness-module-icon">🎓</div>
+        <h3>Academia</h3>
+        <p>
+            Contenido gratuito y programas premium con acceso controlado
+            para cada usuario.
+        </p>
+        <span class="wellness-status">En preparación</span>
+    </div>
+
+    <div class="wellness-module">
+        <div class="wellness-module-icon">👥</div>
+        <h3>Clientes</h3>
+        <p>
+            Registro y seguimiento de participantes, alumnos y clientes
+            dentro del ecosistema de Elizabeth.
+        </p>
+        <span class="wellness-status">En preparación</span>
+    </div>
+
+</div>
+
+{% else %}
+
 <div class="card">
     <h2>{{ business.business_name }}</h2>
 
@@ -20,4 +137,7 @@
     </p>
     <p><strong>Días:</strong> {{ business.working_days or "Sin definir" }}</p>
 </div>
+
+{% endif %}
+
 {% endblock %}
