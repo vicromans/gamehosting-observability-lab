@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Eventos y Talleres · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .events-layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) 1fr;
+        gap: 22px;
+        align-items: start;
+    }
+
+    .events-form label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .events-form input,
+    .events-form select,
+    .events-form textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .events-form textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .events-form button {
+        margin-top: 18px;
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .program-card {
+        margin-bottom: 14px;
+        padding: 18px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #fff;
+    }
+
+    .program-card h3 {
+        margin-top: 0;
+        margin-bottom: 8px;
+    }
+
+    .program-meta {
+        color: #64748b;
+        margin: 4px 0;
+    }
+
+    .status-badge {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .events-success {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #166534;
+        font-weight: 700;
+    }
+
+    .events-error {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+
+    @media (max-width: 900px) {
+        .events-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+{% if created %}
+    <div class="events-success">
+        Evento creado correctamente.
+    </div>
+{% endif %}
+
+{% if error_message %}
+    <div class="events-error">
+        {{ error_message }}
+    </div>
+{% endif %}
+
+<div class="events-layout">
+
+    <div class="card">
+        <h2>Crear actividad</h2>
+
+        <form class="events-form" method="post">
+
+            <label for="title">Título</label>
+            <input id="title" name="title" required>
+
+            <label for="program_type">Tipo</label>
+            <select id="program_type" name="program_type" required>
+                <option value="">Selecciona</option>
+                <option value="constellation">Constelación grupal</option>
+                <option value="masterclass">Masterclass</option>
+                <option value="challenge">Reto</option>
+                <option value="workshop">Taller</option>
+                <option value="retreat">Retiro</option>
+                <option value="course">Curso / Programa</option>
+                <option value="other">Otro</option>
+            </select>
+
+            <label for="description">Descripción</label>
+            <textarea id="description" name="description"></textarea>
+
+            <label for="delivery_mode">Modalidad</label>
+            <select id="delivery_mode" name="delivery_mode" required>
+                <option value="presential">Presencial</option>
+                <option value="online">En línea</option>
+                <option value="hybrid">Híbrido</option>
+            </select>
+
+            <label for="location_name">Lugar</label>
+            <input
+                id="location_name"
+                name="location_name"
+                placeholder="Ej. Satélite o Malinalco"
+            >
+
+            <label for="online_platform">Plataforma online</label>
+            <input
+                id="online_platform"
+                name="online_platform"
+                placeholder="Ej. Zoom"
+            >
+
+            <label for="is_free">Costo</label>
+            <select id="is_free" name="is_free">
+                <option value="0">De pago</option>
+                <option value="1">Gratuito</option>
+            </select>
+
+            <label for="price">Precio MXN</label>
+            <input
+                id="price"
+                name="price"
+                type="number"
+                min="0"
+                step="0.01"
+            >
+
+            <label for="capacity">Cupo</label>
+            <input
+                id="capacity"
+                name="capacity"
+                type="number"
+                min="1"
+                step="1"
+            >
+
+            <button type="submit">
+                Crear actividad
+            </button>
+
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Actividades</h2>
+
+        {% if programs %}
+            {% for program in programs %}
+                <div class="program-card">
+                    <h3>
+                        <a
+                            href="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}"
+                        >
+                            {{ program.title }}
+                        </a>
+                    </h3>
+
+                    <div class="program-meta">
+                        Tipo: {{ program.program_type }}
+                    </div>
+
+                    <div class="program-meta">
+                        Modalidad: {{ program.delivery_mode }}
+                    </div>
+
+                    {% if program.location_name %}
+                        <div class="program-meta">
+                            Lugar: {{ program.location_name }}
+                        </div>
+                    {% endif %}
+
+                    {% if program.online_platform %}
+                        <div class="program-meta">
+                            Plataforma: {{ program.online_platform }}
+                        </div>
+                    {% endif %}
+
+                    <div class="program-meta">
+                        {% if program.is_free %}
+                            Gratuito
+                        {% elif program.price is not none %}
+                            ${{ "%.2f"|format(program.price) }} {{ program.currency }}
+                        {% else %}
+                            Precio por definir
+                        {% endif %}
+                    </div>
+
+                    {% if program.capacity %}
+                        <div class="program-meta">
+                            Cupo: {{ program.capacity }}
+                        </div>
+                    {% endif %}
+
+                    <span class="status-badge">
+                        {{ program.status }}
+                    </span>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>
+                Aún no hay actividades registradas.
+            </p>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

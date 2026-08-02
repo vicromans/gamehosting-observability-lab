@@ -36,6 +36,22 @@
         background: #ffffff;
     }
 
+    .wellness-module-link {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+        transition:
+            transform 0.15s ease,
+            box-shadow 0.15s ease,
+            border-color 0.15s ease;
+    }
+
+    .wellness-module-link:hover {
+        transform: translateY(-2px);
+        border-color: #bfdbfe;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    }
+
     .wellness-module-icon {
         font-size: 1.8rem;
         margin-bottom: 10px;
@@ -88,15 +104,18 @@
         <span class="wellness-status">En preparación</span>
     </div>
 
-    <div class="wellness-module">
+    <a
+        class="wellness-module wellness-module-link"
+        href="/whatsapp/dashboard/business/{{ business.slug }}/events"
+    >
         <div class="wellness-module-icon">🌿</div>
         <h3>Eventos y Talleres</h3>
         <p>
             Constelaciones, masterclasses, retos, talleres y retiros,
             presenciales o en línea.
         </p>
-        <span class="wellness-status">Próximo módulo</span>
-    </div>
+        <span class="wellness-status">Disponible</span>
+    </a>
 
     <div class="wellness-module">
         <div class="wellness-module-icon">🎓</div>

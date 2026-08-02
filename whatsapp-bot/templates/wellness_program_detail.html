@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}{{ program.title }} · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .program-detail-grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) 1fr;
+        gap: 22px;
+        align-items: start;
+    }
+
+    .program-summary p {
+        margin: 7px 0;
+        color: #475569;
+    }
+
+    .session-form label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .session-form input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .session-form button {
+        margin-top: 18px;
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .session-card {
+        padding: 16px;
+        margin-bottom: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .session-card h3 {
+        margin: 0 0 8px 0;
+    }
+
+    .session-meta {
+        color: #64748b;
+        margin-top: 4px;
+    }
+
+    .message-success {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #166534;
+        font-weight: 700;
+    }
+
+    .message-error {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-bottom: 16px;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    @media (max-width: 900px) {
+        .program-detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<a
+    class="back-link"
+    href="/whatsapp/dashboard/business/{{ business.slug }}/events"
+>
+    ← Volver a Eventos y Talleres
+</a>
+
+{% if session_added %}
+    <div class="message-success">
+        Fecha y horario agregados correctamente.
+    </div>
+{% endif %}
+
+{% if request.args.get("session_updated") == "1" %}
+    <div class="message-success">
+        Fecha y horario actualizados correctamente.
+    </div>
+{% endif %}
+
+{% if request.args.get("session_deleted") == "1" %}
+    <div class="message-success">
+        Fecha eliminada correctamente.
+    </div>
+{% endif %}
+
+{% if error_message %}
+    <div class="message-error">
+        {{ error_message }}
+    </div>
+{% endif %}
+
+<div class="program-detail-grid">
+
+    <div>
+        <div class="card program-summary">
+            <h2>{{ program.title }}</h2>
+
+            <p><strong>Tipo:</strong> {{ program.program_type }}</p>
+            <p><strong>Modalidad:</strong> {{ program.delivery_mode }}</p>
+
+            {% if program.location_name %}
+                <p>
+                    <strong>Lugar:</strong>
+                    {{ program.location_name }}
+                </p>
+            {% endif %}
+
+            {% if program.online_platform %}
+                <p>
+                    <strong>Plataforma:</strong>
+                    {{ program.online_platform }}
+                </p>
+            {% endif %}
+
+            <p>
+                <strong>Costo:</strong>
+                {% if program.is_free %}
+                    Gratuito
+                {% elif program.price is not none %}
+                    ${{ "%.2f"|format(program.price) }}
+                    {{ program.currency }}
+                {% else %}
+                    Por definir
+                {% endif %}
+            </p>
+
+            {% if program.capacity %}
+                <p>
+                    <strong>Cupo:</strong>
+                    {{ program.capacity }}
+                </p>
+            {% endif %}
+
+            <p>
+                <strong>Estado:</strong>
+                {{ program.status }}
+            </p>
+
+            <p style="margin-top: 18px;">
+                <a
+                    href="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}/edit"
+                    style="font-weight: 700;"
+                >
+                    ✏️ Editar actividad
+                </a>
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>Agregar fecha</h2>
+
+            <form class="session-form" method="post">
+
+                <label for="session_title">
+                    Nombre de la sesión
+                </label>
+
+                <input
+                    id="session_title"
+                    name="session_title"
+                    placeholder="Opcional. Ej. Día 1"
+                >
+
+                <label for="session_date">
+                    Fecha
+                </label>
+
+                <input
+                    id="session_date"
+                    name="session_date"
+                    type="date"
+                    required
+                >
+
+                <label for="start_time">
+                    Hora de inicio
+                </label>
+
+                <input
+                    id="start_time"
+                    name="start_time"
+                    type="time"
+                >
+
+                <label for="end_time">
+                    Hora de término
+                </label>
+
+                <input
+                    id="end_time"
+                    name="end_time"
+                    type="time"
+                >
+
+                <button type="submit">
+                    Agregar fecha
+                </button>
+
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Fechas y horarios</h2>
+
+        {% if program.sessions %}
+
+            {% for session in program.sessions %}
+                <div class="session-card">
+
+                    <h3>
+                        {% if session.session_title %}
+                            {{ session.session_title }}
+                        {% else %}
+                            Sesión {{ session.session_number }}
+                        {% endif %}
+                    </h3>
+
+                    <div class="session-meta">
+                        📅 {{ session.session_date }}
+                    </div>
+
+                    {% if session.start_time %}
+                        <div class="session-meta">
+                            🕐 {{ session.start_time }}
+                            {% if session.end_time %}
+                                – {{ session.end_time }}
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <div style="display:flex; gap:12px; margin-top:14px;">
+                        <a
+                            href="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}/sessions/{{ session.id }}/edit"
+                            style="font-weight:700;"
+                        >
+                            ✏️ Editar
+                        </a>
+
+                        <form
+                            method="post"
+                            action="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}/sessions/{{ session.id }}/delete"
+                            onsubmit="return confirm('¿Eliminar esta fecha?');"
+                            style="margin:0;"
+                        >
+                            <button
+                                type="submit"
+                                style="
+                                    border:0;
+                                    background:none;
+                                    padding:0;
+                                    color:#dc2626;
+                                    font-weight:700;
+                                    cursor:pointer;
+                                "
+                            >
+                                🗑️ Eliminar
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+            {% endfor %}
+
+        {% else %}
+
+            <p>
+                Esta actividad todavía no tiene fechas registradas.
+            </p>
+
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

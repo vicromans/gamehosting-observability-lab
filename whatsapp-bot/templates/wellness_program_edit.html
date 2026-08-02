@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Editar {{ program.title }} · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .edit-form {
+        max-width: 700px;
+    }
+
+    .edit-form label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .edit-form input,
+    .edit-form select,
+    .edit-form textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .edit-form textarea {
+        min-height: 110px;
+        resize: vertical;
+    }
+
+    .edit-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .edit-save {
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .edit-cancel {
+        padding: 11px 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #334155;
+        font-weight: 700;
+    }
+
+    .edit-error {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+</style>
+
+{% if error_message %}
+    <div class="edit-error">
+        {{ error_message }}
+    </div>
+{% endif %}
+
+<div class="card edit-form">
+    <h2>Editar actividad</h2>
+
+    <form method="post">
+
+        <label for="title">Título</label>
+        <input
+            id="title"
+            name="title"
+            value="{{ program.title }}"
+            required
+        >
+
+        <label for="program_type">Tipo</label>
+        <select id="program_type" name="program_type" required>
+            <option value="constellation" {% if program.program_type == "constellation" %}selected{% endif %}>Constelación grupal</option>
+            <option value="masterclass" {% if program.program_type == "masterclass" %}selected{% endif %}>Masterclass</option>
+            <option value="challenge" {% if program.program_type == "challenge" %}selected{% endif %}>Reto</option>
+            <option value="workshop" {% if program.program_type == "workshop" %}selected{% endif %}>Taller</option>
+            <option value="retreat" {% if program.program_type == "retreat" %}selected{% endif %}>Retiro</option>
+            <option value="course" {% if program.program_type == "course" %}selected{% endif %}>Curso / Programa</option>
+            <option value="other" {% if program.program_type == "other" %}selected{% endif %}>Otro</option>
+        </select>
+
+        <label for="description">Descripción</label>
+        <textarea
+            id="description"
+            name="description"
+        >{{ program.description or "" }}</textarea>
+
+        <label for="delivery_mode">Modalidad</label>
+        <select id="delivery_mode" name="delivery_mode" required>
+            <option value="presential" {% if program.delivery_mode == "presential" %}selected{% endif %}>Presencial</option>
+            <option value="online" {% if program.delivery_mode == "online" %}selected{% endif %}>En línea</option>
+            <option value="hybrid" {% if program.delivery_mode == "hybrid" %}selected{% endif %}>Híbrido</option>
+        </select>
+
+        <label for="location_name">Lugar</label>
+        <input
+            id="location_name"
+            name="location_name"
+            value="{{ program.location_name or '' }}"
+        >
+
+        <label for="online_platform">Plataforma online</label>
+        <input
+            id="online_platform"
+            name="online_platform"
+            value="{{ program.online_platform or '' }}"
+        >
+
+        <label for="is_free">Costo</label>
+        <select id="is_free" name="is_free">
+            <option value="0" {% if not program.is_free %}selected{% endif %}>De pago</option>
+            <option value="1" {% if program.is_free %}selected{% endif %}>Gratuito</option>
+        </select>
+
+        <label for="price">Precio MXN</label>
+        <input
+            id="price"
+            name="price"
+            type="number"
+            min="0"
+            step="0.01"
+            value="{% if program.price is not none %}{{ program.price }}{% endif %}"
+        >
+
+        <label for="capacity">Cupo</label>
+        <input
+            id="capacity"
+            name="capacity"
+            type="number"
+            min="1"
+            step="1"
+            value="{% if program.capacity %}{{ program.capacity }}{% endif %}"
+        >
+
+        <div class="edit-actions">
+            <button class="edit-save" type="submit">
+                Guardar cambios
+            </button>
+
+            <a
+                class="edit-cancel"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}"
+            >
+                Cancelar
+            </a>
+        </div>
+
+    </form>
+</div>
+
+{% endblock %}
