@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}Sesiones · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .sessions-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .sessions-toolbar-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .sessions-toolbar a {
+        display: inline-block;
+        padding: 10px 14px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 700;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        background: #fff;
+    }
+
+    .sessions-list {
+        display: grid;
+        gap: 14px;
+    }
+
+    .session-card {
+        padding: 18px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #fff;
+    }
+
+    .session-card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .session-date {
+        font-size: 0.9rem;
+        color: #64748b;
+        margin-bottom: 5px;
+    }
+
+    .session-client {
+        margin: 0;
+        font-size: 1.15rem;
+    }
+
+    .session-time {
+        font-weight: 800;
+        font-size: 1.05rem;
+        white-space: nowrap;
+    }
+
+    .session-details {
+        margin-top: 12px;
+        color: #475569;
+        line-height: 1.7;
+    }
+
+    .session-status {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .sessions-empty {
+        padding: 28px;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .sessions-empty h2 {
+        color: #0f172a;
+        margin-bottom: 8px;
+    }
+</style>
+
+{% if request.args.get("appointment_updated") == "1" %}
+<div
+    style="
+        margin-bottom: 18px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #166534;
+        font-weight: 700;
+    "
+>
+    Sesión actualizada correctamente.
+</div>
+{% endif %}
+
+{% if request.args.get("appointment_created") == "1" %}
+<div
+    style="
+        margin-bottom: 18px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #166534;
+        font-weight: 700;
+    "
+>
+    Sesión agendada correctamente.
+</div>
+{% endif %}
+
+<div class="sessions-toolbar">
+    <div>
+        <strong>Agenda de sesiones</strong>
+    </div>
+
+    <div class="sessions-toolbar-actions">
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/blocks/new"
+        >
+            🚫 Bloquear agenda
+        </a>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/new"
+        >
+            ➕ Nueva sesión
+        </a>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/settings"
+        >
+            ⚙️ Configuración
+        </a>
+    </div>
+</div>
+
+{% if request.args.get("block_updated") == "1" %}
+<div
+    style="
+        margin-bottom: 18px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #166534;
+        font-weight: 700;
+    "
+>
+    Bloqueo actualizado correctamente.
+</div>
+{% endif %}
+
+{% if request.args.get("block_deleted") == "1" %}
+<div
+    style="
+        margin-bottom: 18px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #166534;
+        font-weight: 700;
+    "
+>
+    Bloqueo eliminado correctamente.
+</div>
+{% endif %}
+
+{% if request.args.get("block_created") == "1" %}
+<div
+    style="
+        margin-bottom: 18px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #166534;
+        font-weight: 700;
+    "
+>
+    Agenda bloqueada correctamente.
+</div>
+{% endif %}
+
+{% if schedule_blocks %}
+<div class="sessions-list" style="margin-bottom: 20px;">
+
+    {% for block in schedule_blocks %}
+    <div
+        class="session-card"
+        style="border-left: 4px solid #94a3b8;"
+    >
+        <div class="session-card-header">
+            <div>
+                <div class="session-date">
+                    {{ block.blocked_date }}
+                </div>
+
+                <h3 class="session-client">
+                    🚫 Agenda bloqueada
+                </h3>
+            </div>
+
+            <div class="session-time">
+                {% if block.start_time_label %}
+                    {{ block.start_time_label }}
+                    –
+                    {{ block.end_time_label }}
+                {% else %}
+                    Día completo
+                {% endif %}
+            </div>
+        </div>
+
+        {% if block.reason %}
+        <div class="session-details">
+            <strong>Motivo:</strong>
+            {{ block.reason }}
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 12px; display: flex; gap: 12px;">
+
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/blocks/{{ block.id }}/edit"
+                style="font-weight: 700;"
+            >
+                ✏️ Editar
+            </a>
+
+            <form
+                method="post"
+                action="/whatsapp/dashboard/business/{{ business.slug }}/sessions/blocks/{{ block.id }}/delete"
+                onsubmit="return confirm('¿Eliminar este bloqueo?');"
+                style="margin: 0;"
+            >
+                <button
+                    type="submit"
+                    style="
+                        border: 0;
+                        background: transparent;
+                        color: #dc2626;
+                        padding: 0;
+                        font-weight: 700;
+                        cursor: pointer;
+                    "
+                >
+                    🗑️ Eliminar
+                </button>
+            </form>
+
+        </div>
+    </div>
+    {% endfor %}
+
+</div>
+{% endif %}
+
+{% if appointments %}
+
+<div class="sessions-list">
+
+    {% for appointment in appointments %}
+        <div class="session-card">
+
+            <div class="session-card-header">
+                <div>
+                    <div class="session-date">
+                        {{ appointment.appointment_date }}
+                    </div>
+
+                    <h3 class="session-client">
+                        {{ appointment.customer_name or "Cliente" }}
+                    </h3>
+                </div>
+
+                <div class="session-time">
+                    {{ appointment.start_time_label }}
+                    {% if appointment.end_time_label %}
+                        – {{ appointment.end_time_label }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="session-details">
+
+                <div>
+                    <strong>Sesión:</strong>
+                    {{
+                        appointment.session_type_name
+                        or appointment.service_name
+                        or "Sin definir"
+                    }}
+                </div>
+
+                {% if appointment.duration_minutes %}
+                    <div>
+                        <strong>Duración:</strong>
+                        {{ appointment.duration_minutes }} min
+                    </div>
+                {% endif %}
+
+                {% if appointment.delivery_mode %}
+                    <div>
+                        <strong>Modalidad:</strong>
+                        {% if appointment.delivery_mode == "presential" %}
+                            Presencial
+                        {% elif appointment.delivery_mode == "online" %}
+                            En línea
+                        {% elif appointment.delivery_mode == "hybrid" %}
+                            Híbrida
+                        {% else %}
+                            {{ appointment.delivery_mode }}
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {% if appointment.customer_phone %}
+                    <div>
+                        <strong>Teléfono:</strong>
+                        {{ appointment.customer_phone }}
+                    </div>
+                {% endif %}
+
+            </div>
+
+            <span class="session-status">
+                {% if appointment.status == "pending" %}
+                    Pendiente
+                {% elif appointment.status == "confirmed" %}
+                    Confirmada
+                {% elif appointment.status in ["cancelled", "canceled"] %}
+                    Cancelada
+                {% elif appointment.status == "completed" %}
+                    Completada
+                {% else %}
+                    {{ appointment.status }}
+                {% endif %}
+            </span>
+
+            <div style="margin-top: 12px;">
+                <a
+                    href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/{{ appointment.id }}/edit"
+                    style="font-weight: 700;"
+                >
+                    ✏️ Editar
+                </a>
+            </div>
+
+        </div>
+    {% endfor %}
+
+</div>
+
+{% else %}
+
+<div class="card sessions-empty">
+    <h2>Aún no hay sesiones agendadas</h2>
+
+    <p>
+        Aquí aparecerán las citas individuales de Elizabeth
+        conforme sean reservadas.
+    </p>
+
+    <p>
+        La agenda mostrará fecha, horario, cliente,
+        tipo de sesión, duración y estado.
+    </p>
+</div>
+
+{% endif %}
+
+{% endblock %}

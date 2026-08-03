@@ -549,4 +549,4 @@ def dashboard_settings():
     )
 
 # Importa los módulos separados para registrar sus rutas.
-from routes.dashboard import agenda, daily_menu, food_catalog, wellness_programs  # noqa: E402,F401
+from routes.dashboard import agenda, daily_menu, food_catalog, wellness_programs, wellness_sessions  # noqa: E402,F401

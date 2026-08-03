@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva sesión · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .new-session-card {
+        max-width: 760px;
+    }
+
+    .new-session-card label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .new-session-card input,
+    .new-session-card select,
+    .new-session-card textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .new-session-card textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .new-session-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .new-session-save {
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .new-session-cancel {
+        padding: 11px 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #334155;
+        font-weight: 700;
+    }
+
+    .new-session-error {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+
+    .session-type-hint {
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+</style>
+
+{% if error_message %}
+    <div class="new-session-error">
+        {{ error_message }}
+    </div>
+{% endif %}
+
+<div class="card new-session-card">
+
+    <h2>Agendar nueva sesión</h2>
+
+    {% if session_types %}
+
+        <form method="post">
+
+            <label for="customer_name">
+                Nombre del cliente
+            </label>
+
+            <input
+                id="customer_name"
+                name="customer_name"
+                value="{{ request.form.get('customer_name', '') }}"
+                required
+            >
+
+            <label for="customer_phone">
+                Teléfono
+            </label>
+
+            <input
+                id="customer_phone"
+                name="customer_phone"
+                type="tel"
+                value="{{ request.form.get('customer_phone', '') }}"
+                required
+            >
+
+            <label for="session_type_id">
+                Tipo de sesión
+            </label>
+
+            <select
+                id="session_type_id"
+                name="session_type_id"
+                required
+            >
+                <option value="">
+                    Selecciona
+                </option>
+
+                {% for item in session_types %}
+                    <option
+                        value="{{ item.id }}"
+                        {% if request.form.get('session_type_id') == item.id|string %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ item.name }}
+                        · {{ item.duration_minutes }} min
+                        {% if item.price is not none %}
+                            · ${{ "%.2f"|format(item.price) }} {{ item.currency }}
+                        {% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <div class="session-type-hint">
+                La duración y modalidad se tomarán automáticamente
+                del tipo de sesión seleccionado.
+            </div>
+
+            <label for="appointment_date">
+                Fecha
+            </label>
+
+            <input
+                id="appointment_date"
+                name="appointment_date"
+                type="date"
+                value="{{ request.form.get('appointment_date', '') }}"
+                required
+            >
+
+            <label for="appointment_time">
+                Hora de inicio
+            </label>
+
+            <input
+                id="appointment_time"
+                name="appointment_time"
+                type="time"
+                value="{{ request.form.get('appointment_time', '') }}"
+                required
+            >
+
+            <label for="status">
+                Estado
+            </label>
+
+            <select
+                id="status"
+                name="status"
+            >
+                <option
+                    value="pending"
+                    {% if request.form.get('status', 'pending') == 'pending' %}selected{% endif %}
+                >
+                    Pendiente
+                </option>
+
+                <option
+                    value="confirmed"
+                    {% if request.form.get('status') == 'confirmed' %}selected{% endif %}
+                >
+                    Confirmada
+                </option>
+            </select>
+
+            <label for="notes">
+                Notas
+            </label>
+
+            <textarea
+                id="notes"
+                name="notes"
+                placeholder="Opcional"
+            >{{ request.form.get('notes', '') }}</textarea>
+
+            <div class="new-session-actions">
+                <button
+                    class="new-session-save"
+                    type="submit"
+                >
+                    Agendar sesión
+                </button>
+
+                <a
+                    class="new-session-cancel"
+                    href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
+                >
+                    Cancelar
+                </a>
+            </div>
+
+        </form>
+
+    {% else %}
+
+        <p>
+            Primero debes crear al menos un tipo de sesión
+            en Configuración.
+        </p>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/settings"
+        >
+            ⚙️ Ir a Configuración
+        </a>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

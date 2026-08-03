@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Editar tipo de sesión · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .session-type-edit {
+        max-width: 700px;
+    }
+
+    .session-type-edit label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .session-type-edit input,
+    .session-type-edit select,
+    .session-type-edit textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .session-type-edit textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .edit-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .edit-save {
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .edit-cancel {
+        padding: 11px 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #334155;
+        font-weight: 700;
+    }
+
+    .edit-error {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+</style>
+
+{% if error_message %}
+    <div class="edit-error">
+        {{ error_message }}
+    </div>
+{% endif %}
+
+<div class="card session-type-edit">
+
+    <h2>Editar tipo de sesión</h2>
+
+    <form method="post">
+
+        <label for="name">Nombre</label>
+        <input
+            id="name"
+            name="name"
+            value="{{ session_type.name }}"
+            required
+        >
+
+        <label for="description">Descripción</label>
+        <textarea
+            id="description"
+            name="description"
+        >{{ session_type.description or "" }}</textarea>
+
+        <label for="duration_minutes">
+            Duración en minutos
+        </label>
+
+        <input
+            id="duration_minutes"
+            name="duration_minutes"
+            type="number"
+            min="1"
+            step="1"
+            value="{{ session_type.duration_minutes }}"
+            required
+        >
+
+        <label for="price">Precio MXN</label>
+        <input
+            id="price"
+            name="price"
+            type="number"
+            min="0"
+            step="0.01"
+            value="{% if session_type.price is not none %}{{ session_type.price }}{% endif %}"
+        >
+
+        <label for="delivery_mode">
+            Modalidad
+        </label>
+
+        <select
+            id="delivery_mode"
+            name="delivery_mode"
+            required
+        >
+            <option
+                value="presential"
+                {% if session_type.delivery_mode == "presential" %}selected{% endif %}
+            >
+                Presencial
+            </option>
+
+            <option
+                value="online"
+                {% if session_type.delivery_mode == "online" %}selected{% endif %}
+            >
+                En línea
+            </option>
+
+            <option
+                value="hybrid"
+                {% if session_type.delivery_mode == "hybrid" %}selected{% endif %}
+            >
+                Híbrida
+            </option>
+        </select>
+
+        <div class="edit-actions">
+            <button
+                class="edit-save"
+                type="submit"
+            >
+                Guardar cambios
+            </button>
+
+            <a
+                class="edit-cancel"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/settings"
+            >
+                Cancelar
+            </a>
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

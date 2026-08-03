@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Editar disponibilidad · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .availability-edit {
+        max-width: 700px;
+    }
+
+    .availability-edit label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .availability-edit input,
+    .availability-edit select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .edit-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .edit-save {
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .edit-cancel {
+        padding: 11px 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #334155;
+        font-weight: 700;
+    }
+
+    .edit-error {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+</style>
+
+{% if error_message %}
+    <div class="edit-error">
+        {{ error_message }}
+    </div>
+{% endif %}
+
+<div class="card availability-edit">
+
+    <h2>Editar disponibilidad</h2>
+
+    <form method="post">
+
+        <label for="weekday">Día</label>
+
+        <select
+            id="weekday"
+            name="weekday"
+            required
+        >
+            {% for value, label in weekday_labels.items() %}
+                <option
+                    value="{{ value }}"
+                    {% if availability.weekday == value %}selected{% endif %}
+                >
+                    {{ label }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="start_time">
+            Hora de inicio
+        </label>
+
+        <input
+            id="start_time"
+            name="start_time"
+            type="time"
+            value="{{ availability.start_time_input }}"
+            required
+        >
+
+        <label for="end_time">
+            Hora de término
+        </label>
+
+        <input
+            id="end_time"
+            name="end_time"
+            type="time"
+            value="{{ availability.end_time_input }}"
+            required
+        >
+
+        <div class="edit-actions">
+            <button
+                class="edit-save"
+                type="submit"
+            >
+                Guardar cambios
+            </button>
+
+            <a
+                class="edit-cancel"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/settings"
+            >
+                Cancelar
+            </a>
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

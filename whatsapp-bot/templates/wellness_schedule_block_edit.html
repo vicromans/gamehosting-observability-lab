@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Editar bloqueo · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .block-card {
+        max-width: 720px;
+    }
+
+    .block-card label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .block-card input,
+    .block-card select,
+    .block-card textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .block-card textarea {
+        min-height: 90px;
+        resize: vertical;
+    }
+
+    .partial-times {
+        display: none;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+
+    .block-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .block-save {
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .block-cancel {
+        padding: 11px 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #334155;
+        font-weight: 700;
+    }
+</style>
+
+<div class="card block-card">
+
+    <h2>Editar bloqueo</h2>
+
+    <form method="post">
+
+        <label for="blocked_date">Fecha</label>
+
+        <input
+            id="blocked_date"
+            name="blocked_date"
+            type="date"
+            value="{{ request.form.get('blocked_date', block.blocked_date) }}"
+            required
+        >
+
+        <label for="block_type">Tipo de bloqueo</label>
+
+        <select
+            id="block_type"
+            name="block_type"
+            onchange="toggleBlockTimes()"
+        >
+            <option
+                value="full_day"
+                {% if not block.start_time %}selected{% endif %}
+            >
+                Día completo
+            </option>
+
+            <option
+                value="partial"
+                {% if block.start_time %}selected{% endif %}
+            >
+                Rango de horas
+            </option>
+        </select>
+
+        <div id="partial-times" class="partial-times">
+
+            <div>
+                <label for="start_time">Hora de inicio</label>
+
+                <input
+                    id="start_time"
+                    name="start_time"
+                    type="time"
+                    value="{{ request.form.get('start_time', block.start_time_input) }}"
+                >
+            </div>
+
+            <div>
+                <label for="end_time">Hora de término</label>
+
+                <input
+                    id="end_time"
+                    name="end_time"
+                    type="time"
+                    value="{{ request.form.get('end_time', block.end_time_input) }}"
+                >
+            </div>
+
+        </div>
+
+        <label for="reason">Motivo</label>
+
+        <textarea
+            id="reason"
+            name="reason"
+        >{{ request.form.get('reason', block.reason or '') }}</textarea>
+
+        <div class="block-actions">
+
+            <button
+                class="block-save"
+                type="submit"
+            >
+                Guardar cambios
+            </button>
+
+            <a
+                class="block-cancel"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
+            >
+                Cancelar
+            </a>
+
+        </div>
+
+    </form>
+
+</div>
+
+<script>
+function toggleBlockTimes() {
+    const type = document.getElementById("block_type").value;
+    const times = document.getElementById("partial-times");
+
+    times.style.display =
+        type === "partial"
+            ? "grid"
+            : "none";
+}
+
+toggleBlockTimes();
+</script>
+
+{% endblock %}

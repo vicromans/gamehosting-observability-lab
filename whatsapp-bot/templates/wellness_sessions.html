@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Sesiones · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<p style="margin-bottom: 16px;">
+    <a
+        href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
+        style="font-weight: 700; text-decoration: none;"
+    >
+        ← Volver a Agenda de sesiones
+    </a>
+</p>
+
+<style>
+    .sessions-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+        align-items: start;
+    }
+
+    .sessions-form label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .sessions-form input,
+    .sessions-form select,
+    .sessions-form textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .sessions-form textarea {
+        min-height: 90px;
+        resize: vertical;
+    }
+
+    .sessions-form button {
+        margin-top: 18px;
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .session-type-card,
+    .availability-card {
+        margin-top: 12px;
+        padding: 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .session-type-card h3,
+    .availability-card h3 {
+        margin: 0 0 8px 0;
+    }
+
+    .meta {
+        color: #64748b;
+        margin-top: 4px;
+    }
+
+    .success-message {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #166534;
+        font-weight: 700;
+    }
+
+    .error-message {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+
+    @media (max-width: 900px) {
+        .sessions-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+{% if session_type_created %}
+    <div class="success-message">
+        Tipo de sesión creado correctamente.
+    </div>
+{% endif %}
+
+{% if request.args.get("session_type_updated") == "1" %}
+    <div class="success-message">
+        Tipo de sesión actualizado correctamente.
+    </div>
+{% endif %}
+
+{% if request.args.get("session_type_deleted") == "1" %}
+    <div class="success-message">
+        Tipo de sesión eliminado correctamente.
+    </div>
+{% endif %}
+
+{% if availability_created %}
+    <div class="success-message">
+        Disponibilidad agregada correctamente.
+    </div>
+{% endif %}
+
+{% if request.args.get("availability_updated") == "1" %}
+    <div class="success-message">
+        Disponibilidad actualizada correctamente.
+    </div>
+{% endif %}
+
+{% if request.args.get("availability_deleted") == "1" %}
+    <div class="success-message">
+        Disponibilidad eliminada correctamente.
+    </div>
+{% endif %}
+
+{% if error_message %}
+    <div class="error-message">
+        {{ error_message }}
+    </div>
+{% endif %}
+
+<div class="sessions-grid">
+
+    <div>
+        <div class="card">
+            <h2>Crear tipo de sesión</h2>
+
+            <form class="sessions-form" method="post">
+                <input
+                    type="hidden"
+                    name="action"
+                    value="create_session_type"
+                >
+
+                <label for="name">Nombre</label>
+                <input
+                    id="name"
+                    name="name"
+                    placeholder="Ej. Sesión individual"
+                    required
+                >
+
+                <label for="description">Descripción</label>
+                <textarea
+                    id="description"
+                    name="description"
+                ></textarea>
+
+                <label for="duration_minutes">
+                    Duración en minutos
+                </label>
+
+                <input
+                    id="duration_minutes"
+                    name="duration_minutes"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="Ej. 90"
+                    required
+                >
+
+                <label for="price">Precio MXN</label>
+                <input
+                    id="price"
+                    name="price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                >
+
+                <label for="delivery_mode">
+                    Modalidad
+                </label>
+
+                <select
+                    id="delivery_mode"
+                    name="delivery_mode"
+                    required
+                >
+                    <option value="presential">
+                        Presencial
+                    </option>
+                    <option value="online">
+                        En línea
+                    </option>
+                    <option value="hybrid">
+                        Híbrida
+                    </option>
+                </select>
+
+                <button type="submit">
+                    Crear tipo de sesión
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Tipos de sesión</h2>
+
+            {% if session_types %}
+                {% for item in session_types %}
+                    <div class="session-type-card">
+                        <h3>{{ item.name }}</h3>
+
+                        <div class="meta">
+                            Duración:
+                            {{ item.duration_minutes }} min
+                        </div>
+
+                        <div class="meta">
+                            Modalidad:
+                            {{ item.delivery_mode }}
+                        </div>
+
+                        <div class="meta">
+                            {% if item.price is not none %}
+                                ${{ "%.2f"|format(item.price) }}
+                                {{ item.currency }}
+                            {% else %}
+                                Precio por definir
+                            {% endif %}
+                        </div>
+
+                        <div style="margin-top: 12px; display: flex; gap: 12px;">
+                            <a
+                                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/types/{{ item.id }}/edit"
+                                style="font-weight: 700;"
+                            >
+                                ✏️ Editar
+                            </a>
+
+                            <form
+                                method="post"
+                                action="/whatsapp/dashboard/business/{{ business.slug }}/sessions/types/{{ item.id }}/delete"
+                                onsubmit="return confirm('¿Discontinuar este tipo de sesión?');"
+                                style="margin: 0;"
+                            >
+                                <button
+                                    type="submit"
+                                    style="
+                                        border: 0;
+                                        background: transparent;
+                                        color: #dc2626;
+                                        padding: 0;
+                                        font-weight: 700;
+                                        cursor: pointer;
+                                    "
+                                >
+                                    ⏸️ Discontinuar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>
+                    Aún no hay tipos de sesión registrados.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <h2>Disponibilidad semanal</h2>
+
+            <form class="sessions-form" method="post">
+                <input
+                    type="hidden"
+                    name="action"
+                    value="add_availability"
+                >
+
+                <label for="weekday">
+                    Día
+                </label>
+
+                <select
+                    id="weekday"
+                    name="weekday"
+                    required
+                >
+                    <option value="0">Lunes</option>
+                    <option value="1">Martes</option>
+                    <option value="2">Miércoles</option>
+                    <option value="3">Jueves</option>
+                    <option value="4">Viernes</option>
+                    <option value="5">Sábado</option>
+                    <option value="6">Domingo</option>
+                </select>
+
+                <label for="start_time">
+                    Hora de inicio
+                </label>
+
+                <input
+                    id="start_time"
+                    name="start_time"
+                    type="time"
+                    required
+                >
+
+                <label for="end_time">
+                    Hora de término
+                </label>
+
+                <input
+                    id="end_time"
+                    name="end_time"
+                    type="time"
+                    required
+                >
+
+                <button type="submit">
+                    Agregar disponibilidad
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Horarios disponibles</h2>
+
+            {% if availability %}
+                {% for item in availability %}
+                    <div class="availability-card">
+                        <h3>{{ item.weekday_label }}</h3>
+
+                        <div class="meta">
+                            {{ item.start_time_label }}
+                            –
+                            {{ item.end_time_label }}
+                        </div>
+
+                        <div style="margin-top: 12px; display: flex; gap: 12px;">
+                            <a
+                                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/availability/{{ item.id }}/edit"
+                                style="font-weight: 700;"
+                            >
+                                ✏️ Editar
+                            </a>
+
+                            <form
+                                method="post"
+                                action="/whatsapp/dashboard/business/{{ business.slug }}/sessions/availability/{{ item.id }}/delete"
+                                onsubmit="return confirm('¿Eliminar este horario?');"
+                                style="margin: 0;"
+                            >
+                                <button
+                                    type="submit"
+                                    style="
+                                        border: 0;
+                                        background: transparent;
+                                        color: #dc2626;
+                                        padding: 0;
+                                        font-weight: 700;
+                                        cursor: pointer;
+                                    "
+                                >
+                                    🗑️ Eliminar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>
+                    Aún no hay horarios configurados.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

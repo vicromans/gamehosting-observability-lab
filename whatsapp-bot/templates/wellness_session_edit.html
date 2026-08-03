@@ -1,29 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}Editar fecha · {{ program.title }}{% endblock %}
+{% block title %}Editar sesión · {{ business.business_name }}{% endblock %}
 
 {% block content %}
 {% include "components/topbar.html" with context %}
 
 <style>
-    .session-edit-form {
-        max-width: 620px;
+    .session-edit-card {
+        max-width: 760px;
     }
 
-    .session-edit-form label {
+    .session-edit-card label {
         display: block;
         margin-top: 14px;
         margin-bottom: 6px;
         font-weight: 700;
     }
 
-    .session-edit-form input {
+    .session-edit-card input,
+    .session-edit-card select,
+    .session-edit-card textarea {
         width: 100%;
         box-sizing: border-box;
         padding: 10px 12px;
         border: 1px solid #cbd5e1;
         border-radius: 8px;
         background: #fff;
+    }
+
+    .session-edit-card textarea {
+        min-height: 100px;
+        resize: vertical;
     }
 
     .session-edit-actions {
@@ -67,55 +74,126 @@
     </div>
 {% endif %}
 
-<div class="card session-edit-form">
+<div class="card session-edit-card">
 
-    <h2>Editar fecha</h2>
+    <h2>Editar sesión</h2>
 
     <form method="post">
 
-        <label for="session_title">
-            Nombre de la sesión
+        <label for="customer_name">
+            Nombre del cliente
         </label>
 
         <input
-            id="session_title"
-            name="session_title"
-            value="{{ session.session_title or '' }}"
+            id="customer_name"
+            name="customer_name"
+            value="{{ request.form.get('customer_name', appointment.customer_name or '') }}"
+            required
         >
 
-        <label for="session_date">
+        <label for="customer_phone">
+            Teléfono
+        </label>
+
+        <input
+            id="customer_phone"
+            name="customer_phone"
+            type="tel"
+            value="{{ request.form.get('customer_phone', appointment.customer_phone or '') }}"
+            required
+        >
+
+        <label for="session_type_id">
+            Tipo de sesión
+        </label>
+
+        <select
+            id="session_type_id"
+            name="session_type_id"
+            required
+        >
+            {% for item in session_types %}
+                <option
+                    value="{{ item.id }}"
+                    {% if request.form.get('session_type_id', appointment.session_type_id|string) == item.id|string %}
+                        selected
+                    {% endif %}
+                >
+                    {{ item.name }}
+                    · {{ item.duration_minutes }} min
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="appointment_date">
             Fecha
         </label>
 
         <input
-            id="session_date"
-            name="session_date"
+            id="appointment_date"
+            name="appointment_date"
             type="date"
-            value="{{ session.session_date.isoformat() }}"
+            value="{{ request.form.get('appointment_date', appointment.appointment_date) }}"
             required
         >
 
-        <label for="start_time">
+        <label for="appointment_time">
             Hora de inicio
         </label>
 
         <input
-            id="start_time"
-            name="start_time"
+            id="appointment_time"
+            name="appointment_time"
             type="time"
-            value="{{ session.start_time_input }}"
+            value="{{ request.form.get('appointment_time', appointment.appointment_time_input) }}"
+            required
         >
 
-        <label for="end_time">
-            Hora de término
+        <label for="status">
+            Estado
         </label>
 
-        <input
-            id="end_time"
-            name="end_time"
-            type="time"
-            value="{{ session.end_time_input }}"
+        <select
+            id="status"
+            name="status"
         >
+            <option
+                value="pending"
+                {% if request.form.get('status', appointment.status) == 'pending' %}selected{% endif %}
+            >
+                Pendiente
+            </option>
+
+            <option
+                value="confirmed"
+                {% if request.form.get('status', appointment.status) == 'confirmed' %}selected{% endif %}
+            >
+                Confirmada
+            </option>
+
+            <option
+                value="completed"
+                {% if request.form.get('status', appointment.status) == 'completed' %}selected{% endif %}
+            >
+                Completada
+            </option>
+
+            <option
+                value="cancelled"
+                {% if request.form.get('status', appointment.status) == 'cancelled' %}selected{% endif %}
+            >
+                Cancelada
+            </option>
+        </select>
+
+        <label for="notes">
+            Notas
+        </label>
+
+        <textarea
+            id="notes"
+            name="notes"
+        >{{ request.form.get('notes', appointment.notes or '') }}</textarea>
 
         <div class="session-edit-actions">
             <button
@@ -127,7 +205,7 @@
 
             <a
                 class="session-edit-cancel"
-                href="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
             >
                 Cancelar
             </a>

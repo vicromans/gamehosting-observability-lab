@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Bloquear agenda · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .block-card {
+        max-width: 720px;
+    }
+
+    .block-card label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .block-card input,
+    .block-card select,
+    .block-card textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .block-card textarea {
+        min-height: 90px;
+        resize: vertical;
+    }
+
+    .block-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .block-save {
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .block-cancel {
+        padding: 11px 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #334155;
+        font-weight: 700;
+    }
+
+    .block-error {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+
+    .partial-times {
+        display: none;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+</style>
+
+{% if error_message %}
+<div class="block-error">
+    {{ error_message }}
+</div>
+{% endif %}
+
+<div class="card block-card">
+
+    <h2>Bloquear agenda</h2>
+
+    <p>
+        Reserva un día completo o solamente algunas horas
+        para descanso o asuntos personales.
+    </p>
+
+    <form method="post">
+
+        <label for="blocked_date">Fecha</label>
+
+        <input
+            id="blocked_date"
+            name="blocked_date"
+            type="date"
+            value="{{ request.form.get('blocked_date', '') }}"
+            required
+        >
+
+        <label for="block_type">Tipo de bloqueo</label>
+
+        <select
+            id="block_type"
+            name="block_type"
+            onchange="toggleBlockTimes()"
+        >
+            <option
+                value="full_day"
+                {% if request.form.get('block_type', 'full_day') == 'full_day' %}selected{% endif %}
+            >
+                Día completo
+            </option>
+
+            <option
+                value="partial"
+                {% if request.form.get('block_type') == 'partial' %}selected{% endif %}
+            >
+                Rango de horas
+            </option>
+        </select>
+
+        <div
+            id="partial-times"
+            class="partial-times"
+        >
+            <div>
+                <label for="start_time">Hora de inicio</label>
+                <input
+                    id="start_time"
+                    name="start_time"
+                    type="time"
+                    value="{{ request.form.get('start_time', '') }}"
+                >
+            </div>
+
+            <div>
+                <label for="end_time">Hora de término</label>
+                <input
+                    id="end_time"
+                    name="end_time"
+                    type="time"
+                    value="{{ request.form.get('end_time', '') }}"
+                >
+            </div>
+        </div>
+
+        <label for="reason">Motivo</label>
+
+        <textarea
+            id="reason"
+            name="reason"
+            placeholder="Ej. Descanso, asunto personal, cita médica..."
+        >{{ request.form.get('reason', '') }}</textarea>
+
+        <div class="block-actions">
+            <button
+                class="block-save"
+                type="submit"
+            >
+                Bloquear agenda
+            </button>
+
+            <a
+                class="block-cancel"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
+            >
+                Cancelar
+            </a>
+        </div>
+
+    </form>
+
+</div>
+
+<script>
+function toggleBlockTimes() {
+    const type = document.getElementById("block_type").value;
+    const times = document.getElementById("partial-times");
+
+    if (type === "partial") {
+        times.style.display = "grid";
+    } else {
+        times.style.display = "none";
+    }
+}
+
+toggleBlockTimes();
+</script>
+
+{% endblock %}

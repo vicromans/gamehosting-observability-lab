@@ -7,7 +7,11 @@
             class="{% if active_page == 'dashboard' %}active{% endif %}"
             href="{% if business.business_type == 'beauty' %}/whatsapp/dashboard{% else %}/whatsapp/dashboard/business/{{ business.slug }}{% endif %}"
         >
-            📊 Dashboard
+            {% if business.business_type == 'wellness' %}
+                🏠 Inicio
+            {% else %}
+                📊 Dashboard
+            {% endif %}
         </a>
 
         {% if business.business_type == 'beauty' %}
@@ -99,7 +103,7 @@
         {% elif business.business_type == 'wellness' %}
             <a
                 class="{% if active_page == 'sessions' %}active{% endif %}"
-                href="#"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
             >
                 📅 Sesiones
             </a>
