@@ -9,6 +9,10 @@ from services.ai.providers.openai_provider import (
     OpenAIProvider,
     OpenAIProviderError,
 )
+from services.ai.providers.gemini_provider import (
+    GeminiProvider,
+    GeminiProviderError,
+)
 
 __all__ = [
     "AIChatRequest",
@@ -18,4 +22,6 @@ __all__ = [
     "AIUsage",
     "OpenAIProvider",
     "OpenAIProviderError",
+    "GeminiProvider",
+    "GeminiProviderError",
 ]
