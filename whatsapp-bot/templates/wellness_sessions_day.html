@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Sesiones · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .calendar-toolbar {
+        display:flex;
+        justify-content:space-between;
+        gap:16px;
+        align-items:center;
+        margin-bottom:18px;
+        flex-wrap:wrap;
+    }
+
+    .calendar-actions,
+    .calendar-tabs {
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+    }
+
+    .calendar-actions a,
+    .calendar-tabs a {
+        display:inline-block;
+        padding:9px 13px;
+        border-radius:8px;
+        text-decoration:none;
+        font-weight:700;
+        border:1px solid #cbd5e1;
+        background:#fff;
+        color:#334155;
+    }
+
+    .calendar-tabs a.active {
+        background:#2563eb;
+        color:#fff;
+        border-color:#2563eb;
+    }
+
+    .day-list {
+        display:grid;
+        gap:14px;
+    }
+
+    .day-item {
+        background:#fff;
+        border:1px solid #e2e8f0;
+        border-radius:12px;
+        padding:18px;
+    }
+
+    .day-item.block {
+        background:#f8fafc;
+        border-left:4px solid #94a3b8;
+    }
+
+    .day-item-header {
+        display:flex;
+        justify-content:space-between;
+        gap:16px;
+        align-items:flex-start;
+    }
+
+    .day-time {
+        font-size:1.05rem;
+        font-weight:800;
+        white-space:nowrap;
+    }
+
+    .day-title {
+        margin:0;
+        font-size:1.1rem;
+    }
+
+    .day-meta {
+        margin-top:10px;
+        color:#64748b;
+        line-height:1.6;
+    }
+
+    .day-actions {
+        margin-top:12px;
+        display:flex;
+        gap:12px;
+        flex-wrap:wrap;
+    }
+
+    .day-actions a {
+        font-weight:700;
+        text-decoration:none;
+    }
+
+    .day-empty {
+        padding:32px;
+        text-align:center;
+        color:#64748b;
+    }
+</style>
+
+<div class="calendar-toolbar">
+
+    <div>
+        <h2 style="margin:0 0 10px;">
+            {{ appointment_date }}
+        </h2>
+
+        <div class="calendar-actions">
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ previous_day }}"
+            >
+                ← Día anterior
+            </a>
+
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ today_date }}"
+            >
+                Hoy
+            </a>
+
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ next_day }}"
+            >
+                Día siguiente →
+            </a>
+        </div>
+    </div>
+
+    <div class="calendar-tabs">
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/month"
+        >
+            Mes
+        </a>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/week?date={{ appointment_date }}"
+        >
+            Semana
+        </a>
+
+        <a
+            class="active"
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ appointment_date }}"
+        >
+            Día
+        </a>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
+        >
+            Lista
+        </a>
+    </div>
+
+</div>
+
+{% if day_items %}
+
+<div class="day-list">
+
+    {% for item in day_items %}
+
+        {% if item.type == "appointment" %}
+
+        <div class="day-item">
+
+            <div class="day-item-header">
+                <div>
+                    <h3 class="day-title">
+                        {{ item.appointment.customer_name or "Cliente" }}
+                    </h3>
+
+                    <div class="day-meta">
+                        {{
+                            item.appointment.session_type_name
+                            or item.appointment.service_name
+                            or "Sesión"
+                        }}
+                    </div>
+                </div>
+
+                <div class="day-time">
+                    {{ item.start_time_label }}
+                    {% if item.end_time_label %}
+                        – {{ item.end_time_label }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="day-meta">
+                {{ item.appointment.duration_minutes or 0 }} min
+                ·
+                {{ item.appointment.delivery_mode or "Sin modalidad" }}
+                ·
+                {{ item.appointment.status }}
+            </div>
+
+            {% if item.appointment.notes %}
+            <div class="day-meta">
+                <strong>Notas:</strong>
+                {{ item.appointment.notes }}
+            </div>
+            {% endif %}
+
+            <div class="day-actions">
+                <a
+                    href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/{{ item.appointment.id }}/edit"
+                >
+                    ✏️ Editar sesión
+                </a>
+            </div>
+
+        </div>
+
+        {% else %}
+
+        <div class="day-item block">
+
+            <div class="day-item-header">
+                <div>
+                    <h3 class="day-title">
+                        🚫 Agenda bloqueada
+                    </h3>
+
+                    <div class="day-meta">
+                        {{ item.block.reason or "Sin motivo" }}
+                    </div>
+                </div>
+
+                <div class="day-time">
+                    {% if item.full_day %}
+                        Día completo
+                    {% else %}
+                        {{ item.start_time_label }}
+                        – {{ item.end_time_label }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="day-actions">
+                <a
+                    href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/blocks/{{ item.block.id }}/edit"
+                >
+                    ✏️ Editar bloqueo
+                </a>
+            </div>
+
+        </div>
+
+        {% endif %}
+
+    {% endfor %}
+
+</div>
+
+{% else %}
+
+<div class="card day-empty">
+    <h2>Sin actividad</h2>
+    <p>
+        No hay sesiones ni bloqueos registrados para este día.
+    </p>
+</div>
+
+{% endif %}
+
+{% endblock %}

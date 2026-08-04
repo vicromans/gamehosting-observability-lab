@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}Sesiones · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .calendar-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+    }
+
+    .calendar-actions,
+    .calendar-tabs {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .calendar-actions a,
+    .calendar-tabs a {
+        display: inline-block;
+        padding: 9px 13px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 700;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #334155;
+    }
+
+    .calendar-tabs a.active {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+    }
+
+    .calendar-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .calendar-stat {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+    }
+
+    .calendar-stat-number {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .calendar-stat-label {
+        color: #64748b;
+        margin-top: 3px;
+        font-size: 0.9rem;
+    }
+
+    .month-calendar {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        background: #cbd5e1;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .calendar-weekday {
+        background: #f8fafc;
+        padding: 10px;
+        text-align: center;
+        font-weight: 800;
+        color: #475569;
+    }
+
+    .calendar-day {
+        min-height: 125px;
+        background: #fff;
+        padding: 10px;
+        box-sizing: border-box;
+        position: relative;
+    }
+
+    .calendar-day.other-month {
+        background: #f8fafc;
+        color: #94a3b8;
+    }
+
+    .calendar-day.today {
+        box-shadow: inset 0 0 0 2px #2563eb;
+    }
+
+    .calendar-day a {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        height: 100%;
+    }
+
+    .calendar-day-number {
+        font-weight: 800;
+        margin-bottom: 10px;
+    }
+
+    .calendar-day-info {
+        display: grid;
+        gap: 6px;
+    }
+
+    .calendar-pill {
+        display: inline-block;
+        padding: 5px 8px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        width: fit-content;
+    }
+
+    .calendar-pill.sessions {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .calendar-pill.blocks {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .calendar-empty {
+        color: #94a3b8;
+        font-size: 0.82rem;
+    }
+
+    @media (max-width: 700px) {
+        .calendar-toolbar {
+            align-items: stretch;
+        }
+
+        .calendar-actions,
+        .calendar-tabs {
+            width: 100%;
+        }
+
+        .calendar-actions a,
+        .calendar-tabs a {
+            text-align: center;
+        }
+
+        .calendar-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .month-calendar {
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 1px;
+        }
+
+        .calendar-weekday {
+            display: block;
+            padding: 7px 2px;
+            font-size: 0.72rem;
+        }
+
+        .calendar-day {
+            min-height: 72px;
+            padding: 6px 4px;
+        }
+
+        .calendar-day-number {
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .calendar-day-info {
+            gap: 3px;
+        }
+
+        .calendar-pill {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 3px 2px;
+            border-radius: 6px;
+            font-size: 0;
+            text-align: center;
+        }
+
+        .calendar-pill.sessions::after {
+            content: attr(data-count) "S";
+            font-size: 0.68rem;
+        }
+
+        .calendar-pill.blocks::after {
+            content: attr(data-count) "B";
+            font-size: 0.68rem;
+        }
+
+        .calendar-empty {
+            display: none;
+        }
+    }
+</style>
+
+<div class="calendar-toolbar">
+
+    <div>
+        <h2 style="margin:0 0 10px;">
+            {{ month_name }}
+        </h2>
+
+        <div class="calendar-actions">
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/month?year={{ previous_year }}&month={{ previous_month }}"
+            >
+                ← Mes anterior
+            </a>
+
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ today_date }}"
+            >
+                Hoy
+            </a>
+
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/month?year={{ next_year }}&month={{ next_month }}"
+            >
+                Mes siguiente →
+            </a>
+        </div>
+    </div>
+
+    <div class="calendar-tabs">
+        <a
+            class="active"
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/month?year={{ year }}&month={{ month }}"
+        >
+            Mes
+        </a>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/week"
+        >
+            Semana
+        </a>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ today_date }}"
+        >
+            Día
+        </a>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
+        >
+            Lista
+        </a>
+    </div>
+
+</div>
+
+<div class="calendar-stats">
+
+    <div class="calendar-stat">
+        <div class="calendar-stat-number">
+            {{ month_stats.total_appointments }}
+        </div>
+        <div class="calendar-stat-label">
+            Sesiones del mes
+        </div>
+    </div>
+
+    <div class="calendar-stat">
+        <div class="calendar-stat-number">
+            {{ month_stats.days_with_appointments }}
+        </div>
+        <div class="calendar-stat-label">
+            Días con sesiones
+        </div>
+    </div>
+
+    <div class="calendar-stat">
+        <div class="calendar-stat-number">
+            {{ month_stats.total_blocks }}
+        </div>
+        <div class="calendar-stat-label">
+            Bloqueos
+        </div>
+    </div>
+
+</div>
+
+<div class="month-calendar">
+
+    {% for weekday in [
+        "Lunes",
+        "Martes",
+        "Miércoles",
+        "Jueves",
+        "Viernes",
+        "Sábado",
+        "Domingo"
+    ] %}
+        <div class="calendar-weekday">
+            {{ weekday }}
+        </div>
+    {% endfor %}
+
+    {% for week in calendar_weeks %}
+        {% for day in week %}
+
+        <div
+            class="
+                calendar-day
+                {% if not day.current_month %}other-month{% endif %}
+                {% if day.is_today %}today{% endif %}
+            "
+        >
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ day.date }}"
+            >
+                <div class="calendar-day-number">
+                    {{ day.day_number }}
+                </div>
+
+                <div class="calendar-day-info">
+
+                    {% if day.total_appointments %}
+                        <span
+                            class="calendar-pill sessions"
+                            data-count="{{ day.total_appointments }}"
+                        >
+                            {{ day.total_appointments }}
+                            sesión(es)
+                        </span>
+                    {% endif %}
+
+                    {% if day.total_blocks %}
+                        <span
+                            class="calendar-pill blocks"
+                            data-count="{{ day.total_blocks }}"
+                        >
+                            🚫 {{ day.total_blocks }}
+                            bloqueo(s)
+                        </span>
+                    {% endif %}
+
+                    {% if not day.total_appointments and not day.total_blocks %}
+                        <span class="calendar-empty">
+                            Sin actividad
+                        </span>
+                    {% endif %}
+
+                </div>
+            </a>
+        </div>
+
+        {% endfor %}
+    {% endfor %}
+
+</div>
+
+{% endblock %}

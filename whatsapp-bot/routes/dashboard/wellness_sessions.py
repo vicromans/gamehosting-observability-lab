@@ -1,4 +1,7 @@
+import calendar
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from zoneinfo import ZoneInfo
 
 from flask import redirect, render_template, request
 
@@ -185,6 +188,438 @@ def dashboard_wellness_sessions_settings(slug):
 
 
 @dashboard_bp.get(
+    "/whatsapp/dashboard/business/<slug>/sessions/month"
+)
+def dashboard_wellness_sessions_month(slug):
+    business, error_response = _get_wellness_business(slug)
+
+    if error_response:
+        return error_response
+
+    timezone_name = business.get("timezone") or "America/Mexico_City"
+    today = datetime.now(ZoneInfo(timezone_name)).date()
+
+    year = request.args.get(
+        "year",
+        default=today.year,
+        type=int,
+    )
+    month = request.args.get(
+        "month",
+        default=today.month,
+        type=int,
+    )
+
+    if month < 1:
+        month = 12
+        year -= 1
+
+    if month > 12:
+        month = 1
+        year += 1
+
+    first_day = datetime(year, month, 1).date()
+
+    last_day_number = calendar.monthrange(
+        year,
+        month,
+    )[1]
+
+    last_day = datetime(
+        year,
+        month,
+        last_day_number,
+    ).date()
+
+    previous_month = month - 1
+    previous_year = year
+
+    if previous_month < 1:
+        previous_month = 12
+        previous_year -= 1
+
+    next_month = month + 1
+    next_year = year
+
+    if next_month > 12:
+        next_month = 1
+        next_year += 1
+
+    appointments = list_wellness_appointments(
+        business_id=business["id"],
+        start_date=first_day,
+        end_date=last_day,
+    )
+
+    schedule_blocks = list_schedule_blocks(
+        business_id=business["id"],
+        start_date=first_day,
+        end_date=last_day,
+    )
+
+    appointment_map = {}
+
+    for appointment in appointments:
+        date_key = str(appointment["appointment_date"])
+
+        if appointment.get("status") == "cancelled":
+            continue
+
+        appointment_map[date_key] = (
+            appointment_map.get(date_key, 0) + 1
+        )
+
+    block_map = {}
+
+    for block in schedule_blocks:
+        date_key = str(block["blocked_date"])
+
+        block_map[date_key] = (
+            block_map.get(date_key, 0) + 1
+        )
+
+    month_weeks = calendar.Calendar(
+        firstweekday=0
+    ).monthdatescalendar(
+        year,
+        month,
+    )
+
+    calendar_weeks = []
+
+    for week in month_weeks:
+        calendar_week = []
+
+        for day in week:
+            date_key = str(day)
+
+            calendar_week.append(
+                {
+                    "date": date_key,
+                    "day_number": day.day,
+                    "current_month": (
+                        day.month == month
+                    ),
+                    "is_today": day == today,
+                    "total_appointments": (
+                        appointment_map.get(
+                            date_key,
+                            0,
+                        )
+                    ),
+                    "total_blocks": (
+                        block_map.get(
+                            date_key,
+                            0,
+                        )
+                    ),
+                }
+            )
+
+        calendar_weeks.append(calendar_week)
+
+    month_stats = {
+        "total_appointments": sum(
+            appointment_map.values()
+        ),
+        "total_blocks": sum(
+            block_map.values()
+        ),
+        "days_with_appointments": len(
+            appointment_map
+        ),
+    }
+
+    return render_template(
+        "wellness_sessions_month.html",
+        business=business,
+        calendar_weeks=calendar_weeks,
+        year=year,
+        month=month,
+        month_name=first_day.strftime("%B %Y"),
+        previous_year=previous_year,
+        previous_month=previous_month,
+        next_year=next_year,
+        next_month=next_month,
+        today_date=str(today),
+        month_stats=month_stats,
+        active_page="sessions",
+        page_title="Sesiones",
+        page_subtitle="Calendario mensual de sesiones",
+    )
+
+
+@dashboard_bp.get(
+    "/whatsapp/dashboard/business/<slug>/sessions/week"
+)
+def dashboard_wellness_sessions_week(slug):
+    business, error_response = _get_wellness_business(slug)
+
+    if error_response:
+        return error_response
+
+    timezone_name = business.get("timezone") or "America/Mexico_City"
+    today = datetime.now(ZoneInfo(timezone_name)).date()
+
+    selected_date_text = request.args.get("date")
+
+    if selected_date_text:
+        try:
+            selected_date = datetime.strptime(
+                selected_date_text,
+                "%Y-%m-%d",
+            ).date()
+        except ValueError:
+            selected_date = today
+    else:
+        selected_date = today
+
+    week_start = selected_date - timedelta(
+        days=selected_date.weekday()
+    )
+    week_end = week_start + timedelta(days=6)
+
+    previous_week = week_start - timedelta(days=7)
+    next_week = week_start + timedelta(days=7)
+
+    appointments = list_wellness_appointments(
+        business_id=business["id"],
+        start_date=week_start,
+        end_date=week_end,
+    )
+
+    schedule_blocks = list_schedule_blocks(
+        business_id=business["id"],
+        start_date=week_start,
+        end_date=week_end,
+    )
+
+    appointments_by_day = {}
+
+    for appointment in appointments:
+        if appointment.get("status") == "cancelled":
+            continue
+
+        date_key = str(appointment["appointment_date"])
+
+        appointment["start_time_label"] = _time_to_hhmm(
+            appointment.get("appointment_time")
+        )
+
+        start_value = appointment.get("appointment_time")
+        duration = appointment.get("duration_minutes") or 0
+
+        if start_value is not None:
+            start_seconds = int(start_value.total_seconds())
+            end_seconds = start_seconds + (duration * 60)
+
+            end_hours = end_seconds // 3600
+            end_minutes = (end_seconds % 3600) // 60
+
+            appointment["end_time_label"] = (
+                f"{end_hours:02d}:{end_minutes:02d}"
+            )
+        else:
+            appointment["end_time_label"] = ""
+
+        appointments_by_day.setdefault(
+            date_key,
+            [],
+        ).append(appointment)
+
+    blocks_by_day = {}
+
+    for block in schedule_blocks:
+        date_key = str(block["blocked_date"])
+
+        block["start_time_label"] = _time_to_hhmm(
+            block.get("start_time")
+        )
+        block["end_time_label"] = _time_to_hhmm(
+            block.get("end_time")
+        )
+
+        blocks_by_day.setdefault(
+            date_key,
+            [],
+        ).append(block)
+
+    day_names = [
+        "Lunes",
+        "Martes",
+        "Miércoles",
+        "Jueves",
+        "Viernes",
+        "Sábado",
+        "Domingo",
+    ]
+
+    week_days = []
+
+    for index in range(7):
+        day = week_start + timedelta(days=index)
+        date_key = str(day)
+
+        week_days.append(
+            {
+                "name": day_names[index],
+                "date": date_key,
+                "day_number": day.day,
+                "is_today": day == today,
+                "appointments": appointments_by_day.get(
+                    date_key,
+                    [],
+                ),
+                "blocks": blocks_by_day.get(
+                    date_key,
+                    [],
+                ),
+            }
+        )
+
+    return render_template(
+        "wellness_sessions_week.html",
+        business=business,
+        week_days=week_days,
+        week_start=str(week_start),
+        week_end=str(week_end),
+        previous_week=str(previous_week),
+        next_week=str(next_week),
+        selected_date=str(selected_date),
+        today_date=str(today),
+        active_page="sessions",
+        page_title="Sesiones",
+        page_subtitle=(
+            f"Semana del {week_start} al {week_end}"
+        ),
+    )
+
+
+@dashboard_bp.get(
+    "/whatsapp/dashboard/business/<slug>/sessions/day/<appointment_date>"
+)
+def dashboard_wellness_sessions_day(
+    slug,
+    appointment_date,
+):
+    business, error_response = _get_wellness_business(slug)
+
+    if error_response:
+        return error_response
+
+    timezone_name = business.get("timezone") or "America/Mexico_City"
+    today = datetime.now(ZoneInfo(timezone_name)).date()
+
+    try:
+        selected_date = datetime.strptime(
+            appointment_date,
+            "%Y-%m-%d",
+        ).date()
+    except ValueError:
+        return "Fecha no válida", 400
+
+    previous_day = selected_date - timedelta(days=1)
+    next_day = selected_date + timedelta(days=1)
+
+    appointments = list_wellness_appointments(
+        business_id=business["id"],
+        start_date=selected_date,
+        end_date=selected_date,
+    )
+
+    schedule_blocks = list_schedule_blocks(
+        business_id=business["id"],
+        start_date=selected_date,
+        end_date=selected_date,
+    )
+
+    day_items = []
+
+    for appointment in appointments:
+        if appointment.get("status") == "cancelled":
+            continue
+
+        start_value = appointment.get("appointment_time")
+        duration = appointment.get("duration_minutes") or 0
+
+        start_label = _time_to_hhmm(start_value)
+        end_label = ""
+
+        sort_seconds = 0
+
+        if start_value is not None:
+            sort_seconds = int(start_value.total_seconds())
+            end_seconds = sort_seconds + (duration * 60)
+
+            end_hours = end_seconds // 3600
+            end_minutes = (end_seconds % 3600) // 60
+
+            end_label = (
+                f"{end_hours:02d}:{end_minutes:02d}"
+            )
+
+        day_items.append(
+            {
+                "type": "appointment",
+                "sort_seconds": sort_seconds,
+                "start_time_label": start_label,
+                "end_time_label": end_label,
+                "appointment": appointment,
+                "block": None,
+            }
+        )
+
+    for block in schedule_blocks:
+        start_value = block.get("start_time")
+        end_value = block.get("end_time")
+
+        is_full_day = (
+            start_value is None
+            and end_value is None
+        )
+
+        if is_full_day:
+            sort_seconds = -1
+            start_label = ""
+            end_label = ""
+        else:
+            sort_seconds = int(start_value.total_seconds())
+            start_label = _time_to_hhmm(start_value)
+            end_label = _time_to_hhmm(end_value)
+
+        day_items.append(
+            {
+                "type": "block",
+                "sort_seconds": sort_seconds,
+                "start_time_label": start_label,
+                "end_time_label": end_label,
+                "appointment": None,
+                "block": block,
+                "full_day": is_full_day,
+            }
+        )
+
+    day_items.sort(
+        key=lambda item: item["sort_seconds"]
+    )
+
+    return render_template(
+        "wellness_sessions_day.html",
+        business=business,
+        appointment_date=str(selected_date),
+        previous_day=str(previous_day),
+        next_day=str(next_day),
+        today_date=str(today),
+        day_items=day_items,
+        appointments=appointments,
+        schedule_blocks=schedule_blocks,
+        active_page="sessions",
+        page_title="Sesiones",
+        page_subtitle=f"Agenda del día {selected_date}",
+    )
+
+
+@dashboard_bp.get(
     "/whatsapp/dashboard/business/<slug>/sessions"
 )
 def dashboard_wellness_sessions(slug):
@@ -233,11 +668,15 @@ def dashboard_wellness_sessions(slug):
             appointment["start_time_label"] = ""
             appointment["end_time_label"] = ""
 
+    timezone_name = business.get("timezone") or "America/Mexico_City"
+    today = datetime.now(ZoneInfo(timezone_name)).date()
+
     return render_template(
         "wellness_sessions_agenda.html",
         business=business,
         appointments=appointments,
         schedule_blocks=schedule_blocks,
+        today_date=str(today),
         active_page="sessions",
         page_title="Sesiones",
         page_subtitle="Agenda de sesiones individuales",

@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Sesiones · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .calendar-toolbar {
+        display:flex;
+        justify-content:space-between;
+        gap:16px;
+        align-items:center;
+        margin-bottom:18px;
+        flex-wrap:wrap;
+    }
+
+    .calendar-actions,
+    .calendar-tabs {
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+    }
+
+    .calendar-actions a,
+    .calendar-tabs a {
+        display:inline-block;
+        padding:9px 13px;
+        border-radius:8px;
+        text-decoration:none;
+        font-weight:700;
+        border:1px solid #cbd5e1;
+        background:#fff;
+        color:#334155;
+    }
+
+    .calendar-tabs a.active {
+        background:#2563eb;
+        color:#fff;
+        border-color:#2563eb;
+    }
+
+    .week-board {
+        display:grid;
+        grid-template-columns:repeat(7, minmax(180px, 1fr));
+        gap:12px;
+        overflow-x:auto;
+    }
+
+    .week-day-card {
+        min-width:180px;
+        padding:14px;
+        border:1px solid #e2e8f0;
+        border-radius:12px;
+        background:#fff;
+    }
+
+    .week-day-card.today {
+        box-shadow:inset 0 0 0 2px #2563eb;
+    }
+
+    .week-day-header {
+        margin-bottom:12px;
+    }
+
+    .week-day-header h3 {
+        margin:0;
+    }
+
+    .week-day-header a {
+        text-decoration:none;
+    }
+
+    .week-item {
+        border:1px solid #e2e8f0;
+        border-radius:8px;
+        padding:10px;
+        margin-bottom:8px;
+    }
+
+    .week-item.block {
+        background:#f8fafc;
+    }
+
+    .week-time {
+        font-weight:800;
+        margin-bottom:4px;
+    }
+
+    .week-meta {
+        color:#64748b;
+        font-size:0.85rem;
+    }
+
+    .week-empty {
+        color:#94a3b8;
+        font-size:0.85rem;
+    }
+
+    @media (max-width: 700px) {
+        .calendar-toolbar {
+            align-items: stretch;
+        }
+
+        .calendar-actions,
+        .calendar-tabs {
+            width: 100%;
+        }
+
+        .calendar-actions a,
+        .calendar-tabs a {
+            text-align: center;
+        }
+
+        .week-board {
+            grid-template-columns: 1fr;
+            overflow-x: visible;
+        }
+
+        .week-day-card {
+            min-width: 0;
+        }
+
+        .week-day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+    }
+</style>
+
+<div class="calendar-toolbar">
+
+    <div>
+        <h2 style="margin:0 0 10px;">
+            Semana {{ week_start }} → {{ week_end }}
+        </h2>
+
+        <div class="calendar-actions">
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/week?date={{ previous_week }}"
+            >
+                ← Semana anterior
+            </a>
+
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ today_date }}"
+            >
+                Hoy
+            </a>
+
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/week?date={{ next_week }}"
+            >
+                Semana siguiente →
+            </a>
+        </div>
+    </div>
+
+    <div class="calendar-tabs">
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/month"
+        >
+            Mes
+        </a>
+
+        <a
+            class="active"
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/week?date={{ selected_date }}"
+        >
+            Semana
+        </a>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ selected_date }}"
+        >
+            Día
+        </a>
+
+        <a
+            href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
+        >
+            Lista
+        </a>
+    </div>
+
+</div>
+
+<div class="week-board">
+
+    {% for day in week_days %}
+
+    <div
+        class="week-day-card {% if day.is_today %}today{% endif %}"
+    >
+        <div class="week-day-header">
+            <h3>{{ day.name }}</h3>
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ day.date }}"
+            >
+                {{ day.date }}
+            </a>
+        </div>
+
+        {% for appointment in day.appointments %}
+            <div class="week-item">
+                <div class="week-time">
+                    {{ appointment.start_time_label }}
+                    {% if appointment.end_time_label %}
+                        – {{ appointment.end_time_label }}
+                    {% endif %}
+                </div>
+
+                <strong>
+                    {{ appointment.customer_name or "Cliente" }}
+                </strong>
+
+                <div class="week-meta">
+                    {{
+                        appointment.session_type_name
+                        or appointment.service_name
+                        or "Sesión"
+                    }}
+                </div>
+            </div>
+        {% endfor %}
+
+        {% for block in day.blocks %}
+            <div class="week-item block">
+                <div class="week-time">
+                    🚫
+                    {% if block.start_time_label %}
+                        {{ block.start_time_label }}
+                        – {{ block.end_time_label }}
+                    {% else %}
+                        Día completo
+                    {% endif %}
+                </div>
+
+                <div class="week-meta">
+                    {{ block.reason or "Agenda bloqueada" }}
+                </div>
+            </div>
+        {% endfor %}
+
+        {% if not day.appointments and not day.blocks %}
+            <div class="week-empty">
+                Sin actividad
+            </div>
+        {% endif %}
+    </div>
+
+    {% endfor %}
+
+</div>
+
+{% endblock %}

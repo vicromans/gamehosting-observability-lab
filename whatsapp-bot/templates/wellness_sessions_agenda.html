@@ -93,6 +93,44 @@
         color: #0f172a;
         margin-bottom: 8px;
     }
+
+    @media (max-width: 700px) {
+        .sessions-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+        }
+
+        .sessions-toolbar-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            width: 100%;
+            gap: 10px;
+        }
+
+        .sessions-toolbar-actions a {
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            white-space: normal;
+        }
+
+        .sessions-toolbar-actions a:last-child {
+            grid-column: 1 / -1;
+        }
+
+        .session-card {
+            padding: 16px;
+        }
+
+        .session-card-header {
+            gap: 10px;
+        }
+
+        .session-time {
+            font-size: 0.95rem;
+        }
+    }
 </style>
 
 {% if request.args.get("appointment_updated") == "1" %}
@@ -124,6 +162,79 @@
     Sesión agendada correctamente.
 </div>
 {% endif %}
+
+<div
+    style="
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        margin-bottom:18px;
+    "
+>
+    <a
+        href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/month"
+        style="
+            display:inline-block;
+            padding:9px 13px;
+            border-radius:8px;
+            text-decoration:none;
+            font-weight:700;
+            border:1px solid #cbd5e1;
+            background:#fff;
+            color:#334155;
+        "
+    >
+        Mes
+    </a>
+
+    <a
+        href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/week"
+        style="
+            display:inline-block;
+            padding:9px 13px;
+            border-radius:8px;
+            text-decoration:none;
+            font-weight:700;
+            border:1px solid #cbd5e1;
+            background:#fff;
+            color:#334155;
+        "
+    >
+        Semana
+    </a>
+
+    <a
+        href="/whatsapp/dashboard/business/{{ business.slug }}/sessions/day/{{ today_date }}"
+        style="
+            display:inline-block;
+            padding:9px 13px;
+            border-radius:8px;
+            text-decoration:none;
+            font-weight:700;
+            border:1px solid #cbd5e1;
+            background:#fff;
+            color:#334155;
+        "
+    >
+        Día
+    </a>
+
+    <a
+        href="/whatsapp/dashboard/business/{{ business.slug }}/sessions"
+        style="
+            display:inline-block;
+            padding:9px 13px;
+            border-radius:8px;
+            text-decoration:none;
+            font-weight:700;
+            border:1px solid #2563eb;
+            background:#2563eb;
+            color:#fff;
+        "
+    >
+        Lista
+    </a>
+</div>
 
 <div class="sessions-toolbar">
     <div>
