@@ -3,6 +3,7 @@ from services.ai.budget.base import (
     AIBudgetManager,
     AIBudgetStatus,
 )
+from services.ai.budget.budget_manager import DefaultAIBudgetManager
 from services.ai.budget.usage_reader import AIMonthlyUsageReader
 
 __all__ = [
