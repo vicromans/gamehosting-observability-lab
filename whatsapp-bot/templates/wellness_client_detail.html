@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ customer.preferred_name or customer.customer_name or "Cliente" }}
+· {{ business.business_name }}
+{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .client-detail-grid {
+        display: grid;
+        grid-template-columns: minmax(280px, 380px) 1fr;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .client-detail-card,
+    .session-history-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .client-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .client-stat {
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 12px;
+        text-align: center;
+    }
+
+    .client-stat strong {
+        display: block;
+        font-size: 20px;
+    }
+
+    .session-history {
+        display: grid;
+        gap: 12px;
+    }
+
+    .session-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 15px;
+    }
+
+    .session-item-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .session-meta {
+        color: #64748b;
+        margin-top: 6px;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-bottom: 18px;
+    }
+
+    @media (max-width: 900px) {
+        .client-detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<a
+    class="back-link"
+    href="/whatsapp/dashboard/business/{{ business.slug }}/clients"
+>
+    ← Volver a clientes
+</a>
+
+{% if request.args.get("customer_updated") == "1" %}
+<div
+    style="
+        padding: 12px 14px;
+        margin-bottom: 18px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        color: #166534;
+        font-weight: 700;
+    "
+>
+    Cliente actualizado correctamente.
+</div>
+{% endif %}
+
+<div class="client-detail-grid">
+
+    <div class="client-detail-card">
+
+        <h2>
+            {{
+                customer.preferred_name
+                or customer.customer_name
+                or "Cliente"
+            }}
+        </h2>
+
+        <p>
+            <strong>Teléfono:</strong>
+            {{ customer.phone_number }}
+        </p>
+
+        <p>
+            <strong>Primer contacto:</strong>
+            {{ customer.first_contact }}
+        </p>
+
+        <p>
+            <strong>Último contacto:</strong>
+            {{ customer.last_contact }}
+        </p>
+
+        {% if customer.customer_notes %}
+        <p>
+            <strong>Notas:</strong><br>
+            {{ customer.customer_notes }}
+        </p>
+        {% endif %}
+
+        <p>
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/clients/{{ customer.id }}/edit"
+            >
+                ✏️ Editar cliente
+            </a>
+        </p>
+
+        <div class="client-stats">
+
+            <div class="client-stat">
+                <strong>{{ total_sessions }}</strong>
+                Sesiones
+            </div>
+
+            <div class="client-stat">
+                <strong>{{ upcoming_sessions }}</strong>
+                Activas
+            </div>
+
+            <div class="client-stat">
+                <strong>{{ completed_sessions }}</strong>
+                Completadas
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="session-history-card">
+
+        <h2>Historial de sesiones</h2>
+
+        {% if appointments %}
+
+        <div class="session-history">
+
+            {% for appointment in appointments %}
+            <div class="session-item">
+
+                <div class="session-item-header">
+                    <strong>
+                        {{ appointment.service_name or "Sesión" }}
+                    </strong>
+
+                    <strong>
+                        {{ appointment.appointment_date }}
+                        ·
+                        {{ appointment.appointment_time }}
+                    </strong>
+                </div>
+
+                <div class="session-meta">
+                    {{ appointment.duration_minutes or 0 }} min
+                    ·
+                    {{ appointment.delivery_mode or "Sin modalidad" }}
+                    ·
+                    {{ appointment.status }}
+                </div>
+
+                {% if appointment.notes %}
+                <div style="margin-top: 10px;">
+                    <strong>Notas:</strong>
+                    {{ appointment.notes }}
+                </div>
+                {% endif %}
+
+            </div>
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+        <p>Este cliente todavía no tiene sesiones registradas.</p>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

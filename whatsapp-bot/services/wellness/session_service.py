@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta
 
 from database.connection import get_db_connection
+from services.customer_service import ensure_business_customer
 
 
 VALID_DELIVERY_MODES = {
@@ -351,6 +352,12 @@ def create_wellness_appointment(
         appointment_date=appointment_date,
         appointment_time=appointment_time,
         duration_minutes=session_type["duration_minutes"],
+    )
+
+    ensure_business_customer(
+        business_id=business_id,
+        phone_number=customer_phone,
+        customer_name=customer_name,
     )
 
     connection = get_db_connection()

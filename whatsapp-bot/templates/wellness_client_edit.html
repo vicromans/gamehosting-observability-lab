@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Editar cliente · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .client-edit-card {
+        max-width: 760px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .client-edit-card label {
+        display: block;
+        font-weight: 700;
+        margin-top: 14px;
+        margin-bottom: 6px;
+    }
+
+    .client-edit-card input,
+    .client-edit-card textarea {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .client-edit-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .error-box {
+        padding: 12px 14px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+</style>
+
+<a
+    href="/whatsapp/dashboard/business/{{ business.slug }}/clients/{{ customer.id }}"
+>
+    ← Volver a la ficha
+</a>
+
+<div class="client-edit-card" style="margin-top: 18px;">
+
+    <h2>Editar cliente</h2>
+
+    {% if error_message %}
+    <div class="error-box">
+        {{ error_message }}
+    </div>
+    {% endif %}
+
+    <form method="POST">
+
+        <label>Nombre</label>
+        <input
+            type="text"
+            name="customer_name"
+            value="{{ customer.customer_name or '' }}"
+            required
+        >
+
+        <label>Nombre preferido</label>
+        <input
+            type="text"
+            name="preferred_name"
+            value="{{ customer.preferred_name or '' }}"
+        >
+
+        <label>Teléfono</label>
+        <input
+            type="text"
+            name="phone_number"
+            value="{{ customer.phone_number or '' }}"
+            required
+        >
+
+        <label>Notas administrativas</label>
+        <textarea
+            name="customer_notes"
+            rows="5"
+        >{{ customer.customer_notes or '' }}</textarea>
+
+        <div class="client-edit-actions">
+            <button class="btn btn-primary" type="submit">
+                Guardar cambios
+            </button>
+
+            <a
+                class="btn btn-secondary"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/clients/{{ customer.id }}"
+            >
+                Cancelar
+            </a>
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes · {{ business.business_name }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .clients-grid {
+        display: grid;
+        gap: 14px;
+    }
+
+    .client-card {
+        padding: 18px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #fff;
+    }
+
+    .client-card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+    }
+
+    .client-name {
+        margin: 0 0 6px;
+        font-size: 19px;
+    }
+
+    .client-phone,
+    .client-meta {
+        color: #64748b;
+    }
+
+    .client-stats {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+    }
+
+    .client-stat {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        font-size: 13px;
+        font-weight: 700;
+        color: #475569;
+    }
+
+    .clients-empty {
+        text-align: center;
+        padding: 40px 24px;
+    }
+</style>
+
+<h2>Clientes registrados</h2>
+
+{% if customers %}
+
+<div class="clients-grid">
+
+    {% for customer in customers %}
+    <div class="client-card">
+
+        <div class="client-card-header">
+            <div>
+                <h3 class="client-name">
+                    {{
+                        customer.preferred_name
+                        or customer.customer_name
+                        or "Cliente"
+                    }}
+                </h3>
+
+                <div class="client-phone">
+                    {{ customer.phone_number }}
+                </div>
+            </div>
+
+            <div class="client-meta">
+                Último contacto:
+                {{ customer.last_contact }}
+            </div>
+        </div>
+
+        <div class="client-stats">
+            <span class="client-stat">
+                {{ customer.session_count or 0 }}
+                sesión(es)
+            </span>
+
+            <span class="client-stat">
+                {{ customer.upcoming_session_count or 0 }}
+                próxima(s)
+            </span>
+        </div>
+
+        {% if customer.customer_notes %}
+        <div style="margin-top: 14px;">
+            <strong>Notas:</strong>
+            {{ customer.customer_notes }}
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 14px;">
+            <a
+                href="/whatsapp/dashboard/business/{{ business.slug }}/clients/{{ customer.id }}"
+            >
+                Ver ficha →
+            </a>
+        </div>
+
+    </div>
+    {% endfor %}
+
+</div>
+
+{% else %}
+
+<div class="card clients-empty">
+    <h2>Aún no hay clientes registrados</h2>
+    <p>
+        Los clientes aparecerán automáticamente
+        cuando se agende una sesión.
+    </p>
+</div>
+
+{% endif %}
+
+{% endblock %}
