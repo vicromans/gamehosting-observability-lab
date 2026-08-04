@@ -14,6 +14,7 @@ from services.ai.providers import (
     AIChatRequest,
     AIChatResponse,
     AIProvider,
+    GeminiProvider,
     OpenAIProvider,
 )
 from services.ai.usage import (
@@ -72,6 +73,12 @@ class AIGateway:
             return OpenAIProvider(
                 api_key=self._config.openai_api_key or "",
                 model=self._config.openai_model or "",
+            )
+
+        if self._config.provider == "gemini":
+            return GeminiProvider(
+                api_key=self._config.gemini_api_key or "",
+                model=self._config.gemini_model or "",
             )
 
         raise AIGatewayError(
