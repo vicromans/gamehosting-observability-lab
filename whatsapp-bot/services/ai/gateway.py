@@ -134,41 +134,73 @@ class AIGateway:
                 or "Monthly AI budget exceeded."
             )
 
-        provider = self._get_provider()
-        started_at = perf_counter()
+        provider_order = self._provider_order()
 
-        try:
-            response = provider.chat(request)
-        except Exception as exc:
-            latency_ms = max(
+        if not provider_order:
+            raise AIGatewayError(
+                "No AI providers are available for this request."
+            )
+
+        response = None
+        successful_latency_ms = 0
+        attempt_errors = []
+
+        for provider_name in provider_order:
+            provider = self._get_provider(provider_name)
+            started_at = perf_counter()
+
+            try:
+                response = provider.chat(request)
+
+            except Exception as exc:
+                latency_ms = max(
+                    0,
+                    int((perf_counter() - started_at) * 1000),
+                )
+
+                self._usage_recorder.record(
+                    AIUsageRecord(
+                        tenant_id=request.tenant_id,
+                        conversation_id=request.conversation_id,
+                        provider=provider.name,
+                        model=getattr(
+                            provider,
+                            "model",
+                            provider_name,
+                        ),
+                        request_id=None,
+                        status="error",
+                        latency_ms=latency_ms,
+                        error_message=str(exc),
+                    )
+                )
+
+                attempt_errors.append(
+                    f"{provider.name}: {exc}"
+                )
+
+                continue
+
+            successful_latency_ms = max(
                 0,
                 int((perf_counter() - started_at) * 1000),
             )
 
-            self._usage_recorder.record(
-                AIUsageRecord(
-                    tenant_id=request.tenant_id,
-                    conversation_id=request.conversation_id,
-                    provider=provider.name,
-                    model=getattr(provider, "model", self._config.provider),
-                    request_id=None,
-                    status="error",
-                    latency_ms=latency_ms,
-                    error_message=str(exc),
+            break
+
+        if response is None:
+            details = "; ".join(attempt_errors)
+
+            raise AIGatewayError(
+                "All AI providers failed."
+                + (
+                    f" Attempts: {details}"
+                    if details
+                    else ""
                 )
             )
 
-            if isinstance(exc, AIGatewayError):
-                raise
-
-            raise AIGatewayError(
-                f"AI provider {provider.name!r} failed: {exc}"
-            ) from exc
-
-        latency_ms = max(
-            0,
-            int((perf_counter() - started_at) * 1000),
-        )
+        latency_ms = successful_latency_ms
 
         estimated_cost_usd = Decimal("0")
 
