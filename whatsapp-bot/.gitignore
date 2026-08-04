@@ -18,3 +18,7 @@ venv/
 
 # Backups
 *.backup*
+
+.env.*
+
+!.env.example
