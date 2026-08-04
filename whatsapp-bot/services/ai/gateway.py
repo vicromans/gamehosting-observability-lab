@@ -9,6 +9,7 @@ from services.ai.budget import (
     AllowAllAIBudgetManager,
 )
 from services.ai.config import AIConfig, load_ai_config
+from services.ai.fallback import AIFallbackStrategy
 from services.ai.pricing import AIPricingProvider
 from services.ai.providers import (
     AIChatRequest,
@@ -46,6 +47,7 @@ class AIGateway:
         pricing_provider: Optional[AIPricingProvider] = None,
         budget_manager: Optional[AIBudgetManager] = None,
         alert_service: Optional[AIBudgetAlertService] = None,
+        fallback_strategy: Optional[AIFallbackStrategy] = None,
     ) -> None:
         self._config = config or load_ai_config()
         self._providers: Dict[str, AIProvider] = dict(providers or {})
@@ -55,6 +57,7 @@ class AIGateway:
             budget_manager or AllowAllAIBudgetManager()
         )
         self._alert_service = alert_service
+        self._fallback_strategy = fallback_strategy
 
     @property
     def enabled(self) -> bool:
@@ -85,14 +88,29 @@ class AIGateway:
             f"No provider factory exists for {self._config.provider!r}."
         )
 
-    def _get_provider(self) -> AIProvider:
-        provider = self._providers.get(self._config.provider)
+    def _get_provider(self, provider_name: Optional[str] = None) -> AIProvider:
+        provider_name = provider_name or self._config.provider
+        provider = self._providers.get(provider_name)
 
         if provider is None:
+            if provider_name != self._config.provider:
+                raise AIGatewayError(
+                    f"AI fallback provider {provider_name!r} is not configured."
+                )
+
             provider = self._create_configured_provider()
-            self._providers[self._config.provider] = provider
+            self._providers[provider_name] = provider
 
         return provider
+
+    def _provider_order(self):
+        if self._fallback_strategy is None:
+            return (self._config.provider,)
+
+        return self._fallback_strategy.provider_order(
+            primary_provider=self._config.provider,
+            available_providers=self._providers.keys(),
+        )
 
     def chat(self, request: AIChatRequest) -> AIChatResponse:
         if not self._config.enabled:
@@ -197,6 +215,7 @@ def create_ai_gateway(
     pricing_provider: Optional[AIPricingProvider] = None,
     budget_manager: Optional[AIBudgetManager] = None,
     alert_service: Optional[AIBudgetAlertService] = None,
+    fallback_strategy: Optional[AIFallbackStrategy] = None,
 ) -> AIGateway:
     return AIGateway(
         config=config,
@@ -205,4 +224,5 @@ def create_ai_gateway(
         pricing_provider=pricing_provider,
         budget_manager=budget_manager,
         alert_service=alert_service,
+        fallback_strategy=fallback_strategy,
     )
