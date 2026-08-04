@@ -31,4 +31,7 @@ __all__ = [
     "AIMessage",
     "AIProvider",
     "AIUsage",
+    "create_default_ai_gateway",
 ]
+
+from services.ai.factory import create_default_ai_gateway
