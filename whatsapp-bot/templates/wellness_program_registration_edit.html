@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Editar participante · {{ program.title }}{% endblock %}
+
+{% block content %}
+{% include "components/topbar.html" with context %}
+
+<style>
+    .registration-edit-card {
+        max-width: 760px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .registration-edit-card label {
+        display: block;
+        margin-top: 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+
+    .registration-edit-card select,
+    .registration-edit-card input,
+    .registration-edit-card textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .registration-edit-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .message-error {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-weight: 700;
+    }
+</style>
+
+<a
+    href="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}"
+>
+    ← Volver a la actividad
+</a>
+
+<div class="registration-edit-card" style="margin-top:18px;">
+
+    <h2>Editar participante</h2>
+
+    <p>
+        <strong>
+            {{
+                registration.preferred_name
+                or registration.customer_name
+                or "Cliente"
+            }}
+        </strong><br>
+        {{ registration.phone_number }}
+    </p>
+
+    {% if error_message %}
+        <div class="message-error">
+            {{ error_message }}
+        </div>
+    {% endif %}
+
+    <form method="post">
+
+        <label for="registration_status">
+            Estado de inscripción
+        </label>
+
+        <select
+            id="registration_status"
+            name="registration_status"
+            required
+        >
+            <option
+                value="registered"
+                {% if registration.registration_status == "registered" %}selected{% endif %}
+            >
+                Inscrito
+            </option>
+
+            <option
+                value="waitlist"
+                {% if registration.registration_status == "waitlist" %}selected{% endif %}
+            >
+                Lista de espera
+            </option>
+
+            <option
+                value="cancelled"
+                {% if registration.registration_status == "cancelled" %}selected{% endif %}
+            >
+                Cancelado
+            </option>
+        </select>
+
+        <label for="payment_status">
+            Estado de pago
+        </label>
+
+        <select
+            id="payment_status"
+            name="payment_status"
+            required
+        >
+            <option
+                value="pending"
+                {% if registration.payment_status == "pending" %}selected{% endif %}
+            >
+                Pendiente
+            </option>
+
+            <option
+                value="partial"
+                {% if registration.payment_status == "partial" %}selected{% endif %}
+            >
+                Parcial
+            </option>
+
+            <option
+                value="paid"
+                {% if registration.payment_status == "paid" %}selected{% endif %}
+            >
+                Pagado
+            </option>
+
+            <option
+                value="not_required"
+                {% if registration.payment_status == "not_required" %}selected{% endif %}
+            >
+                No requiere pago
+            </option>
+        </select>
+
+        <label for="amount_paid">
+            Monto pagado
+        </label>
+
+        <input
+            id="amount_paid"
+            name="amount_paid"
+            type="number"
+            min="0"
+            step="0.01"
+            value="{{ registration.amount_paid if registration.amount_paid is not none else '' }}"
+        >
+
+        <label for="notes">
+            Notas administrativas
+        </label>
+
+        <textarea
+            id="notes"
+            name="notes"
+            rows="4"
+        >{{ registration.notes or '' }}</textarea>
+
+        <div class="registration-edit-actions">
+            <button class="btn btn-primary" type="submit">
+                Guardar cambios
+            </button>
+
+            <a
+                class="btn btn-secondary"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}"
+            >
+                Cancelar
+            </a>
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}

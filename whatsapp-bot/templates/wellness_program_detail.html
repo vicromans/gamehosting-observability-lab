@@ -119,6 +119,24 @@
     </div>
 {% endif %}
 
+{% if registration_added %}
+    <div class="message-success">
+        Participante inscrito correctamente.
+    </div>
+{% endif %}
+
+{% if request.args.get("registration_updated") == "1" %}
+    <div class="message-success">
+        Participante actualizado correctamente.
+    </div>
+{% endif %}
+
+{% if request.args.get("registration_deleted") == "1" %}
+    <div class="message-success">
+        Inscripción eliminada correctamente.
+    </div>
+{% endif %}
+
 {% if error_message %}
     <div class="message-error">
         {{ error_message }}
@@ -306,6 +324,320 @@
 
         {% endif %}
     </div>
+
+</div>
+
+<div
+    class="card"
+    style="margin-top: 22px;"
+>
+    <h2>Participantes</h2>
+
+    <p style="color:#64748b;">
+        Inscribe clientes registrados en esta actividad
+        y lleva control administrativo de su pago.
+    </p>
+
+    {% if customers %}
+
+    <form
+        method="post"
+        action="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}/registrations"
+        style="
+            display:grid;
+            grid-template-columns:2fr 1fr 1fr;
+            gap:14px;
+            align-items:end;
+            margin-top:18px;
+            margin-bottom:24px;
+        "
+    >
+
+        <div>
+            <label
+                for="customer_id"
+                style="display:block;font-weight:700;margin-bottom:6px;"
+            >
+                Cliente
+            </label>
+
+            <select
+                id="customer_id"
+                name="customer_id"
+                required
+                style="
+                    width:100%;
+                    padding:10px 12px;
+                    border:1px solid #cbd5e1;
+                    border-radius:8px;
+                    background:#fff;
+                "
+            >
+                <option value="">
+                    Selecciona un cliente
+                </option>
+
+                {% for customer in customers %}
+                    <option value="{{ customer.id }}">
+                        {{
+                            customer.preferred_name
+                            or customer.customer_name
+                            or "Cliente"
+                        }}
+                        · {{ customer.phone_number }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label
+                for="payment_status"
+                style="display:block;font-weight:700;margin-bottom:6px;"
+            >
+                Estado de pago
+            </label>
+
+            <select
+                id="payment_status"
+                name="payment_status"
+                style="
+                    width:100%;
+                    padding:10px 12px;
+                    border:1px solid #cbd5e1;
+                    border-radius:8px;
+                    background:#fff;
+                "
+            >
+                {% if program.is_free %}
+                    <option value="not_required">
+                        No requiere pago
+                    </option>
+                {% else %}
+                    <option value="pending">
+                        Pendiente
+                    </option>
+                    <option value="partial">
+                        Parcial
+                    </option>
+                    <option value="paid">
+                        Pagado
+                    </option>
+                {% endif %}
+            </select>
+        </div>
+
+        <div>
+            <label
+                for="amount_paid"
+                style="display:block;font-weight:700;margin-bottom:6px;"
+            >
+                Monto pagado
+            </label>
+
+            <input
+                id="amount_paid"
+                name="amount_paid"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:10px 12px;
+                    border:1px solid #cbd5e1;
+                    border-radius:8px;
+                "
+                {% if program.is_free %}disabled{% endif %}
+            >
+        </div>
+
+        <div style="grid-column:1 / -1;">
+            <label
+                for="registration_notes"
+                style="display:block;font-weight:700;margin-bottom:6px;"
+            >
+                Notas administrativas
+            </label>
+
+            <textarea
+                id="registration_notes"
+                name="registration_notes"
+                rows="3"
+                placeholder="Opcional"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:10px 12px;
+                    border:1px solid #cbd5e1;
+                    border-radius:8px;
+                "
+            ></textarea>
+        </div>
+
+        <div style="grid-column:1 / -1;">
+            <button
+                type="submit"
+                style="
+                    padding:11px 18px;
+                    border:0;
+                    border-radius:8px;
+                    background:#2563eb;
+                    color:#fff;
+                    font-weight:700;
+                    cursor:pointer;
+                "
+            >
+                ➕ Inscribir participante
+            </button>
+        </div>
+
+    </form>
+
+    {% else %}
+
+    <p>
+        Todavía no hay clientes registrados.
+        Crea primero un cliente desde Sesiones o Clientes.
+    </p>
+
+    {% endif %}
+
+
+    {% if registrations %}
+
+        <div
+            style="
+                display:grid;
+                gap:12px;
+                margin-top:18px;
+            "
+        >
+
+        {% for registration in registrations %}
+
+            <div
+                style="
+                    border:1px solid #e2e8f0;
+                    border-radius:10px;
+                    padding:16px;
+                "
+            >
+
+                <div
+                    style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:16px;
+                        align-items:flex-start;
+                    "
+                >
+                    <div>
+                        <strong>
+                            {{
+                                registration.preferred_name
+                                or registration.customer_name
+                                or "Cliente"
+                            }}
+                        </strong>
+
+                        <div style="color:#64748b;margin-top:4px;">
+                            {{ registration.phone_number }}
+                        </div>
+                    </div>
+
+                    <div style="font-weight:700;">
+                        {% if registration.registration_status == "registered" %}
+                            Inscrito
+                        {% elif registration.registration_status == "waitlist" %}
+                            Lista de espera
+                        {% elif registration.registration_status == "cancelled" %}
+                            Cancelado
+                        {% else %}
+                            {{ registration.registration_status }}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="margin-top:10px;color:#475569;">
+
+                    <strong>Pago:</strong>
+
+                    {% if registration.payment_status == "paid" %}
+                        Pagado
+                    {% elif registration.payment_status == "partial" %}
+                        Parcial
+                    {% elif registration.payment_status == "not_required" %}
+                        No requiere pago
+                    {% else %}
+                        Pendiente
+                    {% endif %}
+
+                    {% if registration.amount_paid is not none %}
+                        · ${{ "%.2f"|format(registration.amount_paid) }}
+                        {{ program.currency }}
+                    {% endif %}
+
+                </div>
+
+                {% if registration.notes %}
+                    <div style="margin-top:8px;">
+                        <strong>Notas:</strong>
+                        {{ registration.notes }}
+                    </div>
+                {% endif %}
+
+                <div
+                    style="
+                        margin-top:12px;
+                        display:flex;
+                        gap:12px;
+                        align-items:center;
+                    "
+                >
+                    <a
+                        href="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}/registrations/{{ registration.id }}/edit"
+                        style="font-weight:700;"
+                    >
+                        ✏️ Editar participante
+                    </a>
+
+                    <form
+                        method="post"
+                        action="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ program.id }}/registrations/{{ registration.id }}/delete"
+                        onsubmit="return confirm('¿Eliminar esta inscripción?');"
+                        style="margin:0;"
+                    >
+                        <button
+                            type="submit"
+                            style="
+                                border:0;
+                                background:none;
+                                padding:0;
+                                color:#dc2626;
+                                font-weight:700;
+                                cursor:pointer;
+                            "
+                        >
+                            🗑️ Eliminar inscripción
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+        {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <p style="margin-top:20px;color:#64748b;">
+            Esta actividad todavía no tiene participantes inscritos.
+        </p>
+
+    {% endif %}
 
 </div>
 

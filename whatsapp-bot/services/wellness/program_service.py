@@ -476,3 +476,319 @@ def delete_program_session(session_id, program_id):
 
     finally:
         connection.close()
+
+
+VALID_REGISTRATION_ENTRY_STATUSES = {
+    "registered",
+    "cancelled",
+    "waitlist",
+}
+
+VALID_PAYMENT_STATUSES = {
+    "pending",
+    "paid",
+    "partial",
+    "not_required",
+}
+
+
+def list_program_registrations(program_id, business_id):
+    """Return registrations for one wellness program."""
+
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    r.id,
+                    r.business_id,
+                    r.program_id,
+                    r.customer_id,
+                    r.registration_status,
+                    r.payment_status,
+                    r.amount_paid,
+                    r.notes,
+                    r.registered_at,
+                    r.updated_at,
+                    c.phone_number,
+                    c.customer_name,
+                    c.preferred_name
+                FROM wellness_program_registrations r
+                JOIN customers c
+                    ON c.id = r.customer_id
+                   AND c.business_id = r.business_id
+                WHERE r.program_id = %s
+                  AND r.business_id = %s
+                ORDER BY r.registered_at DESC, r.id DESC
+                """,
+                (
+                    program_id,
+                    business_id,
+                ),
+            )
+
+            return cursor.fetchall()
+
+    finally:
+        connection.close()
+
+
+def create_program_registration(
+    program_id,
+    business_id,
+    customer_id,
+    registration_status="registered",
+    payment_status="pending",
+    amount_paid=None,
+    notes=None,
+):
+    """Register one existing customer into one wellness program."""
+
+    if registration_status not in VALID_REGISTRATION_ENTRY_STATUSES:
+        raise ValueError("El estado de inscripción no es válido.")
+
+    if payment_status not in VALID_PAYMENT_STATUSES:
+        raise ValueError("El estado de pago no es válido.")
+
+    notes = (notes or "").strip() or None
+
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id
+                FROM wellness_programs
+                WHERE id = %s
+                  AND business_id = %s
+                LIMIT 1
+                """,
+                (
+                    program_id,
+                    business_id,
+                ),
+            )
+
+            if not cursor.fetchone():
+                raise ValueError("La actividad no existe.")
+
+            cursor.execute(
+                """
+                SELECT id
+                FROM customers
+                WHERE id = %s
+                  AND business_id = %s
+                LIMIT 1
+                """,
+                (
+                    customer_id,
+                    business_id,
+                ),
+            )
+
+            if not cursor.fetchone():
+                raise ValueError("El cliente no existe.")
+
+            cursor.execute(
+                """
+                SELECT id
+                FROM wellness_program_registrations
+                WHERE program_id = %s
+                  AND customer_id = %s
+                LIMIT 1
+                """,
+                (
+                    program_id,
+                    customer_id,
+                ),
+            )
+
+            if cursor.fetchone():
+                raise ValueError(
+                    "Este cliente ya está inscrito en esta actividad."
+                )
+
+            cursor.execute(
+                """
+                INSERT INTO wellness_program_registrations (
+                    business_id,
+                    program_id,
+                    customer_id,
+                    registration_status,
+                    payment_status,
+                    amount_paid,
+                    notes
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    business_id,
+                    program_id,
+                    customer_id,
+                    registration_status,
+                    payment_status,
+                    amount_paid,
+                    notes,
+                ),
+            )
+
+            registration_id = cursor.lastrowid
+
+        connection.commit()
+        return registration_id
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+def update_program_registration(
+    registration_id,
+    program_id,
+    business_id,
+    registration_status,
+    payment_status,
+    amount_paid=None,
+    notes=None,
+):
+    """Update one wellness program registration."""
+
+    if registration_status not in VALID_REGISTRATION_ENTRY_STATUSES:
+        raise ValueError("El estado de inscripción no es válido.")
+
+    if payment_status not in VALID_PAYMENT_STATUSES:
+        raise ValueError("El estado de pago no es válido.")
+
+    notes = (notes or "").strip() or None
+
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE wellness_program_registrations
+                SET
+                    registration_status = %s,
+                    payment_status = %s,
+                    amount_paid = %s,
+                    notes = %s
+                WHERE id = %s
+                  AND program_id = %s
+                  AND business_id = %s
+                """,
+                (
+                    registration_status,
+                    payment_status,
+                    amount_paid,
+                    notes,
+                    registration_id,
+                    program_id,
+                    business_id,
+                ),
+            )
+
+            updated = cursor.rowcount
+
+        connection.commit()
+        return updated > 0
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+def delete_program_registration(
+    registration_id,
+    program_id,
+    business_id,
+):
+    """Delete one wellness program registration."""
+
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                DELETE FROM wellness_program_registrations
+                WHERE id = %s
+                  AND program_id = %s
+                  AND business_id = %s
+                """,
+                (
+                    registration_id,
+                    program_id,
+                    business_id,
+                ),
+            )
+
+            deleted = cursor.rowcount
+
+        connection.commit()
+        return deleted > 0
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+def get_program_registration(
+    registration_id,
+    program_id,
+    business_id,
+):
+    """Return one wellness program registration."""
+
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    r.id,
+                    r.business_id,
+                    r.program_id,
+                    r.customer_id,
+                    r.registration_status,
+                    r.payment_status,
+                    r.amount_paid,
+                    r.notes,
+                    r.registered_at,
+                    r.updated_at,
+                    c.phone_number,
+                    c.customer_name,
+                    c.preferred_name
+                FROM wellness_program_registrations r
+                JOIN customers c
+                    ON c.id = r.customer_id
+                   AND c.business_id = r.business_id
+                WHERE r.id = %s
+                  AND r.program_id = %s
+                  AND r.business_id = %s
+                LIMIT 1
+                """,
+                (
+                    registration_id,
+                    program_id,
+                    business_id,
+                ),
+            )
+
+            return cursor.fetchone()
+
+    finally:
+        connection.close()

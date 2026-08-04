@@ -5,6 +5,7 @@ from services.business_service import get_business_by_slug
 from services.customer_service import (
     get_business_customer,
     list_business_customer_appointments,
+    list_business_customer_program_registrations,
     list_business_customers_with_session_counts,
     update_business_customer,
 )
@@ -67,6 +68,13 @@ def dashboard_wellness_client_detail(slug, customer_id):
         customer["phone_number"],
     )
 
+    program_registrations = (
+        list_business_customer_program_registrations(
+            business["id"],
+            customer["id"],
+        )
+    )
+
     total_sessions = len(appointments)
 
     completed_sessions = sum(
@@ -86,7 +94,9 @@ def dashboard_wellness_client_detail(slug, customer_id):
         business=business,
         customer=customer,
         appointments=appointments,
+        program_registrations=program_registrations,
         total_sessions=total_sessions,
+        total_programs=len(program_registrations),
         completed_sessions=completed_sessions,
         upcoming_sessions=upcoming_sessions,
         active_page="clients",

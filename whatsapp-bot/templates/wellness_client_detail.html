@@ -215,4 +215,99 @@
 
 </div>
 
+<div
+    class="session-history-card"
+    style="margin-top:20px;"
+>
+    <h2>Eventos y Talleres</h2>
+
+    {% if program_registrations %}
+
+    <div class="session-history">
+
+        {% for registration in program_registrations %}
+
+        <div class="session-item">
+
+            <div class="session-item-header">
+                <strong>
+                    {{ registration.program_title }}
+                </strong>
+
+                <strong>
+                    {% if registration.registration_status == "registered" %}
+                        Inscrito
+                    {% elif registration.registration_status == "waitlist" %}
+                        Lista de espera
+                    {% elif registration.registration_status == "cancelled" %}
+                        Cancelado
+                    {% else %}
+                        {{ registration.registration_status }}
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="session-meta">
+                {{ registration.program_type }}
+                ·
+                {{ registration.delivery_mode }}
+                ·
+
+                {% if registration.payment_status == "paid" %}
+                    Pagado
+                {% elif registration.payment_status == "partial" %}
+                    Pago parcial
+                {% elif registration.payment_status == "not_required" %}
+                    Sin pago requerido
+                {% else %}
+                    Pago pendiente
+                {% endif %}
+            </div>
+
+            {% if registration.amount_paid is not none %}
+            <div style="margin-top:8px;">
+                <strong>Monto pagado:</strong>
+                ${{ "%.2f"|format(registration.amount_paid) }}
+                {{ registration.currency }}
+            </div>
+            {% endif %}
+
+            {% if registration.location_name %}
+            <div style="margin-top:8px;">
+                <strong>Lugar:</strong>
+                {{ registration.location_name }}
+            </div>
+            {% endif %}
+
+            {% if registration.registration_notes %}
+            <div style="margin-top:8px;">
+                <strong>Notas:</strong>
+                {{ registration.registration_notes }}
+            </div>
+            {% endif %}
+
+            <div style="margin-top:10px;">
+                <a
+                    href="/whatsapp/dashboard/business/{{ business.slug }}/events/{{ registration.program_id }}"
+                >
+                    Ver actividad →
+                </a>
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    {% else %}
+
+    <p>
+        Este cliente todavía no tiene participaciones en eventos o talleres.
+    </p>
+
+    {% endif %}
+
+</div>
+
 {% endblock %}

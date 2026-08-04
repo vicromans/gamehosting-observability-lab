@@ -4,15 +4,21 @@ from flask import redirect, render_template, request
 
 from routes.dashboard import dashboard_bp
 from services.business_service import get_business_by_slug
+from services.customer_service import list_business_customers_with_session_counts
 from services.wellness.program_service import (
     VALID_DELIVERY_MODES,
     VALID_PROGRAM_TYPES,
     add_program_session,
     create_program,
+    create_program_registration,
+    delete_program_registration,
     delete_program_session,
     get_program,
+    get_program_registration,
+    list_program_registrations,
     list_programs,
     update_program,
+    update_program_registration,
     update_program_session,
 )
 
@@ -177,11 +183,40 @@ def dashboard_wellness_program_detail(slug, program_id):
 
     session_added = request.args.get("session_added") == "1"
 
+    registration_error = request.args.get("registration_error")
+
+    if registration_error == "duplicado":
+        error_message = (
+            "Este cliente ya está inscrito en esta actividad."
+        )
+    elif registration_error == "cliente":
+        error_message = "Selecciona un cliente válido."
+    elif registration_error == "monto":
+        error_message = "El monto pagado no es válido."
+    elif registration_error == "general":
+        error_message = (
+            "No fue posible registrar al participante."
+        )
+
+    registrations = list_program_registrations(
+        program["id"],
+        business["id"],
+    )
+
+    customers = list_business_customers_with_session_counts(
+        business["id"]
+    )
+
     return render_template(
         "wellness_program_detail.html",
         business=business,
         program=program,
+        registrations=registrations,
+        customers=customers,
         session_added=session_added,
+        registration_added=(
+            request.args.get("registration_added") == "1"
+        ),
         error_message=error_message,
         active_page="events",
         page_title=program["title"],
@@ -429,4 +464,230 @@ def dashboard_wellness_session_delete(
     return redirect(
         f"/whatsapp/dashboard/business/{slug}"
         f"/events/{program_id}?session_deleted=1"
+    )
+
+
+@dashboard_bp.post(
+    "/whatsapp/dashboard/business/<slug>/events/<int:program_id>/registrations"
+)
+def dashboard_wellness_program_registration_add(
+    slug,
+    program_id,
+):
+    business, error_response = _get_wellness_business(slug)
+
+    if error_response:
+        return error_response
+
+    program = get_program(
+        program_id,
+        business_id=business["id"],
+    )
+
+    if not program:
+        return "Actividad no encontrada", 404
+
+    raw_customer_id = (
+        request.form.get("customer_id") or ""
+    ).strip()
+
+    payment_status = (
+        request.form.get("payment_status") or "pending"
+    ).strip()
+
+    raw_amount = (
+        request.form.get("amount_paid") or ""
+    ).strip()
+
+    notes = (
+        request.form.get("registration_notes") or ""
+    ).strip() or None
+
+    try:
+        customer_id = int(raw_customer_id)
+    except (TypeError, ValueError):
+        return redirect(
+            f"/whatsapp/dashboard/business/{slug}"
+            f"/events/{program_id}?registration_error=cliente"
+        )
+
+    amount_paid = None
+
+    if raw_amount:
+        try:
+            amount_paid = Decimal(raw_amount)
+        except InvalidOperation:
+            return redirect(
+                f"/whatsapp/dashboard/business/{slug}"
+                f"/events/{program_id}?registration_error=monto"
+            )
+
+    try:
+        create_program_registration(
+            program_id=program["id"],
+            business_id=business["id"],
+            customer_id=customer_id,
+            registration_status="registered",
+            payment_status=payment_status,
+            amount_paid=amount_paid,
+            notes=notes,
+        )
+    except ValueError as exc:
+        error_text = str(exc)
+
+        if "ya está inscrito" in error_text:
+            error_code = "duplicado"
+        else:
+            error_code = "general"
+
+        return redirect(
+            f"/whatsapp/dashboard/business/{slug}"
+            f"/events/{program_id}?registration_error={error_code}"
+        )
+
+    return redirect(
+        f"/whatsapp/dashboard/business/{slug}"
+        f"/events/{program_id}?registration_added=1"
+    )
+
+
+@dashboard_bp.route(
+    "/whatsapp/dashboard/business/<slug>/events/<int:program_id>"
+    "/registrations/<int:registration_id>/edit",
+    methods=["GET", "POST"],
+)
+def dashboard_wellness_program_registration_edit(
+    slug,
+    program_id,
+    registration_id,
+):
+    business, error_response = _get_wellness_business(slug)
+
+    if error_response:
+        return error_response
+
+    program = get_program(
+        program_id,
+        business_id=business["id"],
+    )
+
+    if not program:
+        return "Actividad no encontrada", 404
+
+    registration = get_program_registration(
+        registration_id=registration_id,
+        program_id=program_id,
+        business_id=business["id"],
+    )
+
+    if not registration:
+        return "Inscripción no encontrada", 404
+
+    error_message = None
+
+    if request.method == "POST":
+        registration_status = (
+            request.form.get("registration_status") or ""
+        ).strip()
+
+        payment_status = (
+            request.form.get("payment_status") or ""
+        ).strip()
+
+        raw_amount = (
+            request.form.get("amount_paid") or ""
+        ).strip()
+
+        notes = (
+            request.form.get("notes") or ""
+        ).strip() or None
+
+        amount_paid = None
+
+        if raw_amount:
+            try:
+                amount_paid = Decimal(raw_amount)
+            except InvalidOperation:
+                error_message = "El monto pagado no es válido."
+
+        if not error_message:
+            try:
+                update_program_registration(
+                    registration_id=registration_id,
+                    program_id=program_id,
+                    business_id=business["id"],
+                    registration_status=registration_status,
+                    payment_status=payment_status,
+                    amount_paid=amount_paid,
+                    notes=notes,
+                )
+            except ValueError as exc:
+                error_message = str(exc)
+
+        if not error_message:
+            return redirect(
+                f"/whatsapp/dashboard/business/{slug}"
+                f"/events/{program_id}?registration_updated=1"
+            )
+
+        registration = {
+            **registration,
+            "registration_status": registration_status,
+            "payment_status": payment_status,
+            "amount_paid": amount_paid,
+            "notes": notes,
+        }
+
+    return render_template(
+        "wellness_program_registration_edit.html",
+        business=business,
+        program=program,
+        registration=registration,
+        error_message=error_message,
+        active_page="events",
+        page_title="Editar participante",
+        page_subtitle=program["title"],
+    )
+
+
+@dashboard_bp.post(
+    "/whatsapp/dashboard/business/<slug>/events/<int:program_id>"
+    "/registrations/<int:registration_id>/delete"
+)
+def dashboard_wellness_program_registration_delete(
+    slug,
+    program_id,
+    registration_id,
+):
+    business, error_response = _get_wellness_business(slug)
+
+    if error_response:
+        return error_response
+
+    program = get_program(
+        program_id,
+        business_id=business["id"],
+    )
+
+    if not program:
+        return "Actividad no encontrada", 404
+
+    registration = get_program_registration(
+        registration_id=registration_id,
+        program_id=program_id,
+        business_id=business["id"],
+    )
+
+    if not registration:
+        return "Inscripción no encontrada", 404
+
+    delete_program_registration(
+        registration_id=registration_id,
+        program_id=program_id,
+        business_id=business["id"],
+    )
+
+    return redirect(
+        f"/whatsapp/dashboard/business/{slug}"
+        f"/events/{program_id}?registration_deleted=1"
     )

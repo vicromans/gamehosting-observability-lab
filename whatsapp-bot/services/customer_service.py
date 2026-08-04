@@ -393,3 +393,60 @@ def update_business_customer(
 
     finally:
         conn.close()
+
+
+def list_business_customer_program_registrations(
+    business_id,
+    customer_id,
+):
+    """Return wellness program registrations for one customer."""
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    r.id AS registration_id,
+                    r.program_id,
+                    r.registration_status,
+                    r.payment_status,
+                    r.amount_paid,
+                    r.notes AS registration_notes,
+                    r.registered_at,
+                    r.updated_at,
+
+                    p.title AS program_title,
+                    p.program_type,
+                    p.delivery_mode,
+                    p.location_name,
+                    p.online_platform,
+                    p.price AS program_price,
+                    p.currency,
+                    p.is_free,
+                    p.status AS program_status
+
+                FROM wellness_program_registrations r
+
+                INNER JOIN wellness_programs p
+                    ON p.id = r.program_id
+                   AND p.business_id = r.business_id
+
+                WHERE r.business_id = %s
+                  AND r.customer_id = %s
+
+                ORDER BY
+                    r.registered_at DESC,
+                    r.id DESC
+                """,
+                (
+                    business_id,
+                    customer_id,
+                ),
+            )
+
+            return cursor.fetchall()
+
+    finally:
+        conn.close()
