@@ -2,3 +2,6 @@ flask
 requests
 python-dotenv
 pymysql
+
+# AI providers
+openai>=2.0.0,<3.0.0

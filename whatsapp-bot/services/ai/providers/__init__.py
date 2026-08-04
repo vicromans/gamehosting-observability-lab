@@ -5,6 +5,10 @@ from services.ai.providers.base import (
     AIProvider,
     AIUsage,
 )
+from services.ai.providers.openai_provider import (
+    OpenAIProvider,
+    OpenAIProviderError,
+)
 
 __all__ = [
     "AIChatRequest",
@@ -12,4 +16,6 @@ __all__ = [
     "AIMessage",
     "AIProvider",
     "AIUsage",
+    "OpenAIProvider",
+    "OpenAIProviderError",
 ]
