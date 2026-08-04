@@ -4,13 +4,21 @@ from services.ai.budget.base import (
     AIBudgetStatus,
 )
 from services.ai.budget.budget_manager import DefaultAIBudgetManager
+from services.ai.budget.policy import (
+    AIBudgetPolicy,
+    AIBudgetPolicyReader,
+)
 from services.ai.budget.usage_reader import AIMonthlyUsageReader
 
 __all__ = [
     "AIBudgetManager",
     "AIBudgetStatus",
+    "AIBudgetPolicy",
+    "AIBudgetPolicyReader",
     "AIMonthlyUsageReader",
     "AllowAllAIBudgetManager",
+    "DefaultAIBudgetManager",
+    "MariaDBAIBudgetPolicyReader",
     "MariaDBAIMonthlyUsageReader",
 ]
 
@@ -22,6 +30,13 @@ def __getattr__(name):
         )
 
         return MariaDBAIMonthlyUsageReader
+
+    if name == "MariaDBAIBudgetPolicyReader":
+        from services.ai.budget.mariadb_policy import (
+            MariaDBAIBudgetPolicyReader,
+        )
+
+        return MariaDBAIBudgetPolicyReader
 
     raise AttributeError(
         f"module {__name__!r} has no attribute {name!r}"
