@@ -34,4 +34,13 @@ __all__ = [
     "create_default_ai_gateway",
 ]
 
-from services.ai.factory import create_default_ai_gateway
+
+
+def __getattr__(name):
+    if name == "create_default_ai_gateway":
+        from services.ai.factory import create_default_ai_gateway
+        return create_default_ai_gateway
+
+    raise AttributeError(
+        f"module {__name__!r} has no attribute {name!r}"
+    )
