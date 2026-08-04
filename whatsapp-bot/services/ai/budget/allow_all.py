@@ -22,5 +22,7 @@ class AllowAllAIBudgetManager(AIBudgetManager):
             spent_usd=Decimal("0"),
             remaining_usd=monthly_budget_usd,
             utilization_percent=Decimal("0"),
+            warning_percent=Decimal("80.00"),
+            level="normal",
             allowed=True,
         )

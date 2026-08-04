@@ -11,6 +11,8 @@ class AIBudgetStatus:
     spent_usd: Decimal
     remaining_usd: Decimal
     utilization_percent: Decimal
+    warning_percent: Decimal
+    level: str
     allowed: bool
     reason: Optional[str] = None
 
@@ -26,6 +28,26 @@ class AIBudgetStatus:
 
         if self.utilization_percent < 0:
             raise ValueError("utilization_percent cannot be negative.")
+
+        if not Decimal("0") <= self.warning_percent <= Decimal("100"):
+            raise ValueError(
+                "warning_percent must be between 0 and 100."
+            )
+
+        if self.level not in {"normal", "warning", "exceeded"}:
+            raise ValueError(
+                "level must be 'normal', 'warning', or 'exceeded'."
+            )
+
+        if self.allowed and self.level == "exceeded":
+            raise ValueError(
+                "An exceeded budget status cannot be allowed."
+            )
+
+        if not self.allowed and self.level != "exceeded":
+            raise ValueError(
+                "A rejected budget status must be exceeded."
+            )
 
         if self.allowed and self.reason:
             raise ValueError(
