@@ -1,7 +1,10 @@
 from time import perf_counter
 from typing import Dict, Optional
 
+from decimal import Decimal
+
 from services.ai.config import AIConfig, load_ai_config
+from services.ai.pricing import AIPricingProvider
 from services.ai.providers import (
     AIChatRequest,
     AIChatResponse,
@@ -30,10 +33,12 @@ class AIGateway:
         config: Optional[AIConfig] = None,
         providers: Optional[Dict[str, AIProvider]] = None,
         usage_recorder: Optional[AIUsageRecorder] = None,
+        pricing_provider: Optional[AIPricingProvider] = None,
     ) -> None:
         self._config = config or load_ai_config()
         self._providers: Dict[str, AIProvider] = dict(providers or {})
         self._usage_recorder = usage_recorder or NullAIUsageRecorder()
+        self._pricing_provider = pricing_provider
 
     @property
     def enabled(self) -> bool:
@@ -109,6 +114,24 @@ class AIGateway:
             int((perf_counter() - started_at) * 1000),
         )
 
+        estimated_cost_usd = Decimal("0")
+
+        if self._pricing_provider is not None:
+            try:
+                price = self._pricing_provider.get_price(
+                    provider=response.provider,
+                    model=response.model,
+                )
+                estimated_cost_usd = price.estimate_cost(
+                    input_tokens=response.usage.input_tokens,
+                    output_tokens=response.usage.output_tokens,
+                )
+            except LookupError:
+                # An unknown or newly versioned model must not discard
+                # an otherwise valid AI response. It will be logged at
+                # zero cost until its price is registered.
+                estimated_cost_usd = Decimal("0")
+
         self._usage_recorder.record(
             AIUsageRecord(
                 tenant_id=request.tenant_id,
@@ -121,6 +144,7 @@ class AIGateway:
                 input_tokens=response.usage.input_tokens,
                 output_tokens=response.usage.output_tokens,
                 total_tokens=response.usage.total_tokens,
+                estimated_cost_usd=estimated_cost_usd,
             )
         )
 
@@ -132,9 +156,11 @@ def create_ai_gateway(
     config: Optional[AIConfig] = None,
     providers: Optional[Dict[str, AIProvider]] = None,
     usage_recorder: Optional[AIUsageRecorder] = None,
+    pricing_provider: Optional[AIPricingProvider] = None,
 ) -> AIGateway:
     return AIGateway(
         config=config,
         providers=providers,
         usage_recorder=usage_recorder,
+        pricing_provider=pricing_provider,
     )
