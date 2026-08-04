@@ -54,8 +54,12 @@ class AIConfig:
     enabled: bool
     provider: str
     monthly_budget_usd: Decimal
+
     openai_api_key: Optional[str]
     openai_model: Optional[str]
+
+    gemini_api_key: Optional[str] = None
+    gemini_model: Optional[str] = None
 
     @classmethod
     def from_env(cls) -> "AIConfig":
@@ -75,15 +79,22 @@ class AIConfig:
             enabled=enabled,
             provider=provider,
             monthly_budget_usd=monthly_budget_usd,
+
             openai_api_key=os.getenv("OPENAI_API_KEY") or None,
             openai_model=os.getenv("OPENAI_MODEL") or None,
+
+            gemini_api_key=os.getenv("GEMINI_API_KEY") or None,
+            gemini_model=os.getenv("GEMINI_MODEL") or None,
         )
 
         config.validate()
         return config
 
     def validate(self) -> None:
-        supported_providers = {"openai"}
+        supported_providers = {
+            "openai",
+            "gemini",
+        }
 
         if self.provider not in supported_providers:
             raise AIConfigError(
@@ -105,6 +116,19 @@ class AIConfig:
                 raise AIConfigError(
                     "OPENAI_MODEL is required when AI_ENABLED=true "
                     "and AI_PROVIDER=openai."
+                )
+
+        if self.provider == "gemini":
+            if not self.gemini_api_key:
+                raise AIConfigError(
+                    "GEMINI_API_KEY is required when AI_ENABLED=true "
+                    "and AI_PROVIDER=gemini."
+                )
+
+            if not self.gemini_model:
+                raise AIConfigError(
+                    "GEMINI_MODEL is required when AI_ENABLED=true "
+                    "and AI_PROVIDER=gemini."
                 )
 
 
