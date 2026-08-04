@@ -4,6 +4,7 @@ from services.ai.config import (
     load_ai_config,
 )
 from services.ai.gateway import (
+    AIBudgetExceededError,
     AIGateway,
     AIGatewayDisabledError,
     AIGatewayError,
