@@ -1,3 +1,10 @@
+from services.ai.alerts import (
+    AIBudgetAlertService,
+    MariaDBAIBudgetAlertStore,
+)
+from services.ai.alerts.owner_notifier import (
+    OwnerAIBudgetAlertNotifier,
+)
 from services.ai.budget import (
     DefaultAIBudgetManager,
     MariaDBAIBudgetPolicyReader,
@@ -16,8 +23,14 @@ def create_default_ai_gateway() -> AIGateway:
         policy_reader=MariaDBAIBudgetPolicyReader(),
     )
 
+    alert_service = AIBudgetAlertService(
+        store=MariaDBAIBudgetAlertStore(),
+        notifier=OwnerAIBudgetAlertNotifier(),
+    )
+
     return create_ai_gateway(
         usage_recorder=MariaDBAIUsageRecorder(),
         pricing_provider=create_openai_pricing_registry(),
         budget_manager=budget_manager,
+        alert_service=alert_service,
     )

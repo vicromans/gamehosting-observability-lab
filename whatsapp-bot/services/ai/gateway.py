@@ -3,6 +3,7 @@ from typing import Dict, Optional
 
 from decimal import Decimal
 
+from services.ai.alerts import AIBudgetAlertService
 from services.ai.budget import (
     AIBudgetManager,
     AllowAllAIBudgetManager,
@@ -43,6 +44,7 @@ class AIGateway:
         usage_recorder: Optional[AIUsageRecorder] = None,
         pricing_provider: Optional[AIPricingProvider] = None,
         budget_manager: Optional[AIBudgetManager] = None,
+        alert_service: Optional[AIBudgetAlertService] = None,
     ) -> None:
         self._config = config or load_ai_config()
         self._providers: Dict[str, AIProvider] = dict(providers or {})
@@ -51,6 +53,7 @@ class AIGateway:
         self._budget_manager = (
             budget_manager or AllowAllAIBudgetManager()
         )
+        self._alert_service = alert_service
 
     @property
     def enabled(self) -> bool:
@@ -94,6 +97,11 @@ class AIGateway:
             tenant_id=request.tenant_id,
             monthly_budget_usd=self._config.monthly_budget_usd,
         )
+
+        if self._alert_service is not None:
+            self._alert_service.process(
+                status=budget_status,
+            )
 
         if not budget_status.allowed:
             raise AIBudgetExceededError(
@@ -181,6 +189,7 @@ def create_ai_gateway(
     usage_recorder: Optional[AIUsageRecorder] = None,
     pricing_provider: Optional[AIPricingProvider] = None,
     budget_manager: Optional[AIBudgetManager] = None,
+    alert_service: Optional[AIBudgetAlertService] = None,
 ) -> AIGateway:
     return AIGateway(
         config=config,
@@ -188,4 +197,5 @@ def create_ai_gateway(
         usage_recorder=usage_recorder,
         pricing_provider=pricing_provider,
         budget_manager=budget_manager,
+        alert_service=alert_service,
     )
