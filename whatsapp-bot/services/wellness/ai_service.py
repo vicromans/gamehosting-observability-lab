@@ -149,7 +149,7 @@ class WellnessAIService:
                     content=message,
                 ),
             ],
-            max_output_tokens=500,
+            max_output_tokens=1500,
         )
 
         return self._gateway.chat(request)
