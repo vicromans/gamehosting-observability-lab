@@ -128,6 +128,22 @@ class OpenAIProvider(AIProvider):
         content = self._extract_output_text(response)
 
         if not content:
+            status = getattr(response, "status", None)
+            incomplete_details = getattr(response, "incomplete_details", None)
+            incomplete_reason = getattr(incomplete_details, "reason", None)
+
+            if status == "incomplete":
+                detail = (
+                    f" Reason: {incomplete_reason}."
+                    if incomplete_reason
+                    else ""
+                )
+
+                raise OpenAIProviderError(
+                    "OpenAI returned an incomplete response with no text."
+                    f"{detail}"
+                )
+
             raise OpenAIProviderError(
                 "OpenAI returned no text content."
             )
