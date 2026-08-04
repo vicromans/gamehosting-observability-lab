@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import Optional
+from typing import Optional, Tuple
 
 
 class AIConfigError(ValueError):
@@ -61,6 +61,8 @@ class AIConfig:
     gemini_api_key: Optional[str] = None
     gemini_model: Optional[str] = None
 
+    fallback_providers: Tuple[str, ...] = ()
+
     @classmethod
     def from_env(cls) -> "AIConfig":
         enabled = _parse_bool(os.getenv("AI_ENABLED"), default=False)
@@ -75,6 +77,15 @@ class AIConfig:
             variable_name="AI_MONTHLY_BUDGET_USD",
         )
 
+        fallback_providers = tuple(
+            provider.strip().lower()
+            for provider in os.getenv(
+                "AI_FALLBACK_PROVIDERS",
+                "",
+            ).split(",")
+            if provider.strip()
+        )
+
         config = cls(
             enabled=enabled,
             provider=provider,
@@ -85,6 +96,8 @@ class AIConfig:
 
             gemini_api_key=os.getenv("GEMINI_API_KEY") or None,
             gemini_model=os.getenv("GEMINI_MODEL") or None,
+
+            fallback_providers=fallback_providers,
         )
 
         config.validate()
@@ -100,6 +113,26 @@ class AIConfig:
             raise AIConfigError(
                 f"Unsupported AI_PROVIDER: {self.provider!r}. "
                 f"Supported providers: {', '.join(sorted(supported_providers))}."
+            )
+
+        for fallback_provider in self.fallback_providers:
+            if fallback_provider not in supported_providers:
+                raise AIConfigError(
+                    f"Unsupported AI fallback provider: "
+                    f"{fallback_provider!r}."
+                )
+
+            if fallback_provider == self.provider:
+                raise AIConfigError(
+                    "AI_FALLBACK_PROVIDERS cannot contain "
+                    "the primary AI_PROVIDER."
+                )
+
+        if len(set(self.fallback_providers)) != len(
+            self.fallback_providers
+        ):
+            raise AIConfigError(
+                "AI_FALLBACK_PROVIDERS cannot contain duplicates."
             )
 
         if not self.enabled:
