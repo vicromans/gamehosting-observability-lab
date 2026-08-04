@@ -52,7 +52,6 @@ def build_wellness_ai_context(business_id):
                 "is_free": bool(program.get("is_free")),
                 "price": program.get("price"),
                 "currency": program.get("currency"),
-                "capacity": program.get("capacity"),
                 "registration_status": program.get(
                     "registration_status"
                 ),
