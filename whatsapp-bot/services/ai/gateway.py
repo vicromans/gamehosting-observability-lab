@@ -1,3 +1,4 @@
+from time import perf_counter
 from typing import Dict, Optional
 
 from services.ai.config import AIConfig, load_ai_config
@@ -6,6 +7,11 @@ from services.ai.providers import (
     AIChatResponse,
     AIProvider,
     OpenAIProvider,
+)
+from services.ai.usage import (
+    AIUsageRecord,
+    AIUsageRecorder,
+    NullAIUsageRecorder,
 )
 
 
@@ -23,9 +29,11 @@ class AIGateway:
         *,
         config: Optional[AIConfig] = None,
         providers: Optional[Dict[str, AIProvider]] = None,
+        usage_recorder: Optional[AIUsageRecorder] = None,
     ) -> None:
         self._config = config or load_ai_config()
         self._providers: Dict[str, AIProvider] = dict(providers or {})
+        self._usage_recorder = usage_recorder or NullAIUsageRecorder()
 
     @property
     def enabled(self) -> bool:
@@ -66,23 +74,67 @@ class AIGateway:
             )
 
         provider = self._get_provider()
+        started_at = perf_counter()
 
         try:
-            return provider.chat(request)
-        except AIGatewayError:
-            raise
+            response = provider.chat(request)
         except Exception as exc:
+            latency_ms = max(
+                0,
+                int((perf_counter() - started_at) * 1000),
+            )
+
+            self._usage_recorder.record(
+                AIUsageRecord(
+                    tenant_id=request.tenant_id,
+                    conversation_id=request.conversation_id,
+                    provider=provider.name,
+                    model=getattr(provider, "model", self._config.provider),
+                    request_id=None,
+                    status="error",
+                    latency_ms=latency_ms,
+                    error_message=str(exc),
+                )
+            )
+
+            if isinstance(exc, AIGatewayError):
+                raise
+
             raise AIGatewayError(
                 f"AI provider {provider.name!r} failed: {exc}"
             ) from exc
+
+        latency_ms = max(
+            0,
+            int((perf_counter() - started_at) * 1000),
+        )
+
+        self._usage_recorder.record(
+            AIUsageRecord(
+                tenant_id=request.tenant_id,
+                conversation_id=request.conversation_id,
+                provider=response.provider,
+                model=response.model,
+                request_id=response.request_id,
+                status="success",
+                latency_ms=latency_ms,
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+                total_tokens=response.usage.total_tokens,
+            )
+        )
+
+        return response
 
 
 def create_ai_gateway(
     *,
     config: Optional[AIConfig] = None,
     providers: Optional[Dict[str, AIProvider]] = None,
+    usage_recorder: Optional[AIUsageRecorder] = None,
 ) -> AIGateway:
     return AIGateway(
         config=config,
         providers=providers,
+        usage_recorder=usage_recorder,
     )
