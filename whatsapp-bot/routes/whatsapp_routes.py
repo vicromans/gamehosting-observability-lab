@@ -3,7 +3,9 @@ import os
 from flask import Blueprint, jsonify, request
 
 from database.connection import get_db_connection
+from services.business_service import get_business_by_phone
 from services.conversation.engine import build_replies
+from services.wellness.ai_service import WellnessAIService
 from services.conversation.human import mark_human_required
 from services.whatsapp_service import (
     download_whatsapp_media,
@@ -49,6 +51,44 @@ def receive_message():
         change = entry.get("changes", [])[0]
         value = change.get("value", {})
 
+        metadata = value.get("metadata", {})
+        receiver_phone_number = metadata.get("display_phone_number")
+        receiver_phone_number_id = (
+            metadata.get("phone_number_id")
+            or WHATSAPP_PHONE_NUMBER_ID
+        )
+
+        business = (
+            get_business_by_phone(receiver_phone_number)
+            if receiver_phone_number
+            else None
+        )
+
+        if business:
+            business_id = business["id"]
+            business_type = business["business_type"]
+        else:
+            # Preserve the current Aura behavior for any number
+            # that has not yet been assigned to a tenant.
+            business_id = 1
+            business_type = "beauty"
+
+            print(
+                "WHATSAPP TENANT FALLBACK: "
+                f"receiver={receiver_phone_number!r} "
+                "business_id=1",
+                flush=True,
+            )
+
+        print(
+            "WHATSAPP TENANT RESOLVED: "
+            f"receiver={receiver_phone_number!r} "
+            f"phone_number_id={receiver_phone_number_id!r} "
+            f"business_id={business_id} "
+            f"business_type={business_type!r}",
+            flush=True,
+        )
+
         contacts = value.get("contacts", [])
         messages = value.get("messages", [])
 
@@ -66,8 +106,28 @@ def receive_message():
 
         if message_type == "text":
             incoming_message = message.get("text", {}).get("body", "")
-            replies = build_replies(incoming_message, phone_number)
-            reply = "\n\n---\n\n".join([r for r in replies if r])
+
+            if business_type == "wellness":
+                wellness_service = WellnessAIService(
+                    business_id=business_id,
+                )
+
+                wellness_response = wellness_service.ask(
+                    incoming_message,
+                )
+
+                reply = wellness_response.content
+                replies = [reply]
+                intent = "wellness_ai"
+
+            else:
+                replies = build_replies(
+                    incoming_message,
+                    phone_number,
+                )
+                reply = "\n\n---\n\n".join(
+                    [item for item in replies if item]
+                )
 
         elif message_type == "image":
             image_data = message.get("image", {})
@@ -146,7 +206,7 @@ def receive_message():
         if reply and "canalizar" in reply:
             mark_human_required(phone_number)
 
-        if message_type == "text":
+        if message_type == "text" and business_type != "wellness":
             intent = "unknown"
             lower_msg = incoming_message.lower()
 
@@ -175,13 +235,19 @@ def receive_message():
                     ON DUPLICATE KEY UPDATE
                         customer_name = VALUES(customer_name),
                         last_contact = CURRENT_TIMESTAMP
-                """, (1, phone_number, customer_name))
+                """, (business_id, phone_number, customer_name))
 
                 cursor.execute("""
                     INSERT INTO whatsapp_messages
                     (business_id, phone_number, incoming_message, bot_reply, detected_intent)
                     VALUES (%s, %s, %s, %s, %s)
-                """, (1, phone_number, incoming_message, reply, intent))
+                """, (
+                    business_id,
+                    phone_number,
+                    incoming_message,
+                    reply,
+                    intent,
+                ))
 
                 message_db_id = cursor.lastrowid
 
@@ -207,7 +273,7 @@ def receive_message():
                             local_path = COALESCE(VALUES(local_path), local_path)
                     """, (
                         message_db_id,
-                        1,
+                        business_id,
                         phone_number,
                         media_record["media_type"],
                         media_record["media_id"],
@@ -234,7 +300,7 @@ def receive_message():
                 send_whatsapp_message(
                     phone_number,
                     outbound_message,
-                    WHATSAPP_PHONE_NUMBER_ID,
+                    receiver_phone_number_id,
                     WHATSAPP_TOKEN
                 )
 
