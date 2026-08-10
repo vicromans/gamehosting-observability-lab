@@ -8,8 +8,10 @@ TEST_PORT="5101"
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MEDIA_DIR="${APP_DIR}/data/whatsapp-media"
+KNOWLEDGE_DIR="${APP_DIR}/data/knowledge"
 
 mkdir -p "${MEDIA_DIR}"
+mkdir -p "${KNOWLEDGE_DIR}"
 
 echo "== VeldrikLabs Safe Deploy =="
 
@@ -33,6 +35,7 @@ docker run -d \
   --network gamehosting-observability-lab_default \
   --env-file .env \
   -v "${MEDIA_DIR}:/app/static/uploads/whatsapp" \
+-v "${KNOWLEDGE_DIR}:/app/data/knowledge" \
   -p ${TEST_PORT}:5100 \
   ${IMAGE_NAME}:new
 
@@ -61,6 +64,7 @@ docker run -d \
   --env-file .env \
   --restart unless-stopped \
   -v "${MEDIA_DIR}:/app/static/uploads/whatsapp" \
+-v "${KNOWLEDGE_DIR}:/app/data/knowledge" \
   -p 5100:5100 \
   ${IMAGE_NAME}:latest
 
