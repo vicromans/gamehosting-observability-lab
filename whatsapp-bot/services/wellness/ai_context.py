@@ -1,5 +1,6 @@
 from datetime import date
 
+from services.knowledge import list_approved_documents
 from services.wellness.program_service import list_programs
 from services.wellness.session_service import list_session_types
 
@@ -19,6 +20,10 @@ def build_wellness_ai_context(business_id):
     )
 
     programs = list_programs(business_id)
+
+    approved_documents = list_approved_documents(
+        business_id
+    )
 
     published_programs = [
         program
@@ -71,4 +76,17 @@ def build_wellness_ai_context(business_id):
             }
             for program in published_programs
         ],
+    "approved_knowledge": [
+        {
+            "id": document.get("id"),
+            "title": document.get("title"),
+            "source_type": document.get("source_type"),
+            "original_filename": document.get(
+                "original_filename"
+            ),
+            "content": document.get("notes"),
+        }
+        for document in approved_documents
+        if (document.get("notes") or "").strip()
+    ],
     }

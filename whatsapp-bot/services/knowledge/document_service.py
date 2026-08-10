@@ -179,3 +179,42 @@ def archive_document(document_id, business_id):
         business_id=business_id,
         status="archived",
     )
+
+
+def list_approved_documents(business_id):
+    """
+    Return approved knowledge documents for one business.
+
+    Only explicitly approved documents are eligible to be exposed
+    to AI consumers.
+    """
+    connection = get_db_connection()
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    business_id,
+                    title,
+                    original_filename,
+                    document_type,
+                    storage_path,
+                    source_type,
+                    status,
+                    notes,
+                    created_at,
+                    updated_at
+                FROM knowledge_documents
+                WHERE business_id = %s
+                  AND status = 'approved'
+                ORDER BY updated_at DESC, id DESC
+                """,
+                (business_id,),
+            )
+
+            return cursor.fetchall()
+
+    finally:
+        connection.close()
