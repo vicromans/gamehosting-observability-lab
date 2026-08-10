@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}
+Agregar conocimiento · {{ business.business_name }}
+{% endblock %}
+
+{% block content %}
+
+{% set page_title = "Agregar conocimiento" %}
+{% set page_subtitle = "Captura información que podrá utilizar el asistente de IA." %}
+{% include "components/topbar.html" %}
+
+<section class="card">
+    {% if error %}
+        <div class="badge badge-danger" style="margin-bottom:16px;">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="POST" class="settings-form">
+        <label for="title">Título</label>
+
+        <input
+            id="title"
+            type="text"
+            name="title"
+            value="{{ request.form.get('title', '') }}"
+            placeholder="Ej. ¿Qué son las Constelaciones Familiares?"
+            required
+        >
+
+        <label for="content">
+            Contenido
+        </label>
+
+        <textarea
+            id="content"
+            name="content"
+            rows="14"
+            placeholder="Escribe aquí la información proporcionada por el negocio."
+            required
+        >{{ request.form.get('content', '') }}</textarea>
+
+        <p style="opacity:.75;">
+            El documento se guardará inicialmente como
+            <strong>Pendiente</strong> y no será utilizado todavía
+            por el asistente de IA.
+        </p>
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="btn btn-primary" type="submit">
+                Guardar conocimiento
+            </button>
+
+            <a
+                class="btn"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/knowledge"
+            >
+                Cancelar
+            </a>
+        </div>
+    </form>
+</section>
+
+{% endblock %}
