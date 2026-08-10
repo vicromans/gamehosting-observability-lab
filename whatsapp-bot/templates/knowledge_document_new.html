@@ -7,7 +7,7 @@ Agregar conocimiento · {{ business.business_name }}
 {% block content %}
 
 {% set page_title = "Agregar conocimiento" %}
-{% set page_subtitle = "Captura información que podrá utilizar el asistente de IA." %}
+{% set page_subtitle = "Captura o sube información que podrá utilizar el asistente de IA." %}
 {% include "components/topbar.html" %}
 
 <section class="card">
@@ -17,7 +17,11 @@ Agregar conocimiento · {{ business.business_name }}
         </div>
     {% endif %}
 
-    <form method="POST" class="settings-form">
+    <form
+        method="POST"
+        enctype="multipart/form-data"
+        class="settings-form"
+    >
         <label for="title">Título</label>
 
         <input
@@ -29,20 +33,54 @@ Agregar conocimiento · {{ business.business_name }}
             required
         >
 
+        <label for="source_type">Origen de la información</label>
+
+        <select id="source_type" name="source_type">
+            <option
+                value="manual"
+                {% if request.form.get('source_type', 'manual') == 'manual' %}selected{% endif %}
+            >
+                Escribir texto
+            </option>
+
+            <option
+                value="upload"
+                {% if request.form.get('source_type') == 'upload' %}selected{% endif %}
+            >
+                Subir archivo TXT
+            </option>
+        </select>
+
         <label for="content">
-            Contenido
+            Texto manual
         </label>
 
         <textarea
             id="content"
             name="content"
-            rows="14"
+            rows="12"
             placeholder="Escribe aquí la información proporcionada por el negocio."
-            required
         >{{ request.form.get('content', '') }}</textarea>
 
+        <label for="knowledge_file">
+            Archivo TXT
+        </label>
+
+        <input
+            id="knowledge_file"
+            type="file"
+            name="knowledge_file"
+            accept=".txt,text/plain"
+        >
+
         <p style="opacity:.75;">
-            El documento se guardará inicialmente como
+            Usa <strong>Texto manual</strong> o selecciona
+            <strong>Subir archivo TXT</strong>.
+            Los archivos deben ser TXT UTF-8 y tener un tamaño máximo de 5 MB.
+        </p>
+
+        <p style="opacity:.75;">
+            Todo conocimiento nuevo se guardará inicialmente como
             <strong>Pendiente</strong> y no será utilizado todavía
             por el asistente de IA.
         </p>

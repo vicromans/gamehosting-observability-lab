@@ -11,6 +11,11 @@ from services.knowledge import (
     create_document,
     list_documents,
 )
+from services.knowledge.file_service import (
+    delete_knowledge_file,
+    extract_text_file,
+    save_knowledge_file,
+)
 
 
 @dashboard_bp.get(
@@ -42,7 +47,7 @@ def knowledge_library(business_slug):
     methods=["GET", "POST"],
 )
 def knowledge_document_new(business_slug):
-    """Create a manual knowledge document."""
+    """Create manual or uploaded knowledge."""
 
     business = get_business_by_slug(business_slug)
 
@@ -53,26 +58,92 @@ def knowledge_document_new(business_slug):
 
     if request.method == "POST":
         title = request.form.get("title", "").strip()
-        content = request.form.get("content", "").strip()
+        source_type = (
+            request.form.get("source_type", "manual")
+            .strip()
+            .lower()
+        )
 
         if not title:
             error = "El título es obligatorio."
-        elif not content:
-            error = "El contenido es obligatorio."
-        else:
-            document_id = create_document(
-                business_id=business["id"],
-                title=title,
-                document_type="text",
-                source_type="manual",
-                notes=content,
-            )
 
-            return redirect(
-                f"/whatsapp/dashboard/business/"
-                f"{business_slug}/knowledge"
-                f"?created={document_id}"
-            )
+        elif source_type == "manual":
+            content = request.form.get("content", "").strip()
+
+            if not content:
+                error = "El contenido es obligatorio."
+            else:
+                document_id = create_document(
+                    business_id=business["id"],
+                    title=title,
+                    document_type="text",
+                    source_type="manual",
+                    notes=content,
+                )
+
+                return redirect(
+                    f"/whatsapp/dashboard/business/"
+                    f"{business_slug}/knowledge"
+                    f"?created={document_id}"
+                )
+
+        elif source_type == "upload":
+            uploaded_file = request.files.get("knowledge_file")
+
+            if not uploaded_file or not uploaded_file.filename:
+                error = "Selecciona un archivo TXT."
+            else:
+                stored_file = None
+
+                try:
+                    stored_file = save_knowledge_file(
+                        business_id=business["id"],
+                        uploaded_file=uploaded_file,
+                    )
+
+                    content = extract_text_file(
+                        stored_file["storage_path"]
+                    )
+
+                    document_id = create_document(
+                        business_id=business["id"],
+                        title=title,
+                        original_filename=(
+                            stored_file["original_filename"]
+                        ),
+                        document_type="text",
+                        storage_path=(
+                            stored_file["storage_path"]
+                        ),
+                        source_type="upload",
+                        notes=content,
+                    )
+
+                except ValueError as exc:
+                    if stored_file:
+                        delete_knowledge_file(
+                            stored_file["storage_path"]
+                        )
+
+                    error = str(exc)
+
+                except Exception:
+                    if stored_file:
+                        delete_knowledge_file(
+                            stored_file["storage_path"]
+                        )
+
+                    raise
+
+                else:
+                    return redirect(
+                        f"/whatsapp/dashboard/business/"
+                        f"{business_slug}/knowledge"
+                        f"?created={document_id}"
+                    )
+
+        else:
+            error = "El tipo de fuente no es válido."
 
     return render_template(
         "knowledge_document_new.html",
