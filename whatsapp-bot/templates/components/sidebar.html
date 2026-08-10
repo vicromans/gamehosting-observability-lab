@@ -44,6 +44,13 @@
             </a>
 
             <a
+                class="{% if active_page == 'knowledge' %}active{% endif %}"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/knowledge"
+            >
+                📚 Biblioteca de conocimiento
+            </a>
+
+            <a
                 class="{% if active_page == 'settings' %}active{% endif %}"
                 href="/whatsapp/dashboard/settings"
             >
@@ -141,6 +148,13 @@
                 href="#"
             >
                 📈 Reportes
+            </a>
+
+            <a
+                class="{% if active_page == 'knowledge' %}active{% endif %}"
+                href="/whatsapp/dashboard/business/{{ business.slug }}/knowledge"
+            >
+                📚 Biblioteca de conocimiento
             </a>
 
             <a

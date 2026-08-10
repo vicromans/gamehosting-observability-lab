@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}
+Biblioteca de conocimiento · {{ business.business_name }}
+{% endblock %}
+
+{% block content %}
+
+{% set page_title = "Biblioteca de conocimiento" %}
+{% set page_subtitle = "Información que utilizará el asistente de IA para responder a tus clientes." %}
+{% include "components/topbar.html" %}
+
+<section class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div>
+            <h2 style="margin-top:0;">📚 Documentos</h2>
+            <p style="margin-bottom:0;">
+                Administra la información y documentación propia de
+                {{ business.business_name }}.
+            </p>
+        </div>
+
+        <button
+            class="btn btn-primary"
+            type="button"
+            disabled
+            title="Disponible en la siguiente fase"
+        >
+            + Agregar documento
+        </button>
+    </div>
+</section>
+
+{% if documents %}
+    <table>
+        <thead>
+            <tr>
+                <th>Documento</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Actualizado</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for document in documents %}
+                <tr>
+                    <td>
+                        <strong>{{ document.title }}</strong>
+
+                        {% if document.original_filename %}
+                            <div style="margin-top:4px; opacity:.7;">
+                                {{ document.original_filename }}
+                            </div>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {{ document.document_type or "—" }}
+                    </td>
+
+                    <td>
+                        {% if document.status == "approved" %}
+                            {% set badge_text = "Aprobado" %}
+                            {% set badge_variant = "success" %}
+                        {% elif document.status == "conflict" %}
+                            {% set badge_text = "Conflicto" %}
+                            {% set badge_variant = "danger" %}
+                        {% else %}
+                            {% set badge_text = "Pendiente" %}
+                            {% set badge_variant = "warning" %}
+                        {% endif %}
+
+                        {% include "components/badge.html" %}
+                    </td>
+
+                    <td>
+                        {{ document.updated_at.strftime("%d/%m/%Y %H:%M") if document.updated_at else "—" }}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <section class="card">
+        <h3 style="margin-top:0;">
+            Aún no hay documentos
+        </h3>
+
+        <p style="margin-bottom:0;">
+            Aquí aparecerá la información que el asistente de IA
+            podrá utilizar como conocimiento del negocio.
+        </p>
+    </section>
+{% endif %}
+
+{% endblock %}
