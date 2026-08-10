@@ -25,7 +25,7 @@ Agregar conocimiento · {{ business.business_name }}
             type="text"
             name="title"
             value="{{ request.form.get('title', '') }}"
-            placeholder="Ej. ¿Qué son las Constelaciones Familiares?"
+            placeholder="{% if business.business_type == 'wellness' %}Ej. ¿Qué son las Constelaciones Familiares?{% elif business.business_type == 'beauty' %}Ej. Cuidados después de una aplicación de pestañas{% else %}Ej. Información importante para tus clientes{% endif %}"
             required
         >
 
