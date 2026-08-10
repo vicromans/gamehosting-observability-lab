@@ -13,7 +13,7 @@ from services.knowledge import (
 )
 from services.knowledge.file_service import (
     delete_knowledge_file,
-    extract_text_file,
+    extract_knowledge_text,
     save_knowledge_file,
 )
 
@@ -91,7 +91,7 @@ def knowledge_document_new(business_slug):
             uploaded_file = request.files.get("knowledge_file")
 
             if not uploaded_file or not uploaded_file.filename:
-                error = "Selecciona un archivo TXT."
+                error = "Selecciona un archivo TXT, PDF o DOCX."
             else:
                 stored_file = None
 
@@ -101,7 +101,7 @@ def knowledge_document_new(business_slug):
                         uploaded_file=uploaded_file,
                     )
 
-                    content = extract_text_file(
+                    content = extract_knowledge_text(
                         stored_file["storage_path"]
                     )
 

@@ -47,7 +47,7 @@ Agregar conocimiento · {{ business.business_name }}
                 value="upload"
                 {% if request.form.get('source_type') == 'upload' %}selected{% endif %}
             >
-                Subir archivo TXT
+                Subir archivo
             </option>
         </select>
 
@@ -63,20 +63,20 @@ Agregar conocimiento · {{ business.business_name }}
         >{{ request.form.get('content', '') }}</textarea>
 
         <label for="knowledge_file">
-            Archivo TXT
+            Archivo
         </label>
 
         <input
             id="knowledge_file"
             type="file"
             name="knowledge_file"
-            accept=".txt,text/plain"
+            accept=".txt,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         >
 
         <p style="opacity:.75;">
             Usa <strong>Texto manual</strong> o selecciona
-            <strong>Subir archivo TXT</strong>.
-            Los archivos deben ser TXT UTF-8 y tener un tamaño máximo de 5 MB.
+            <strong>Subir archivo</strong>.
+            Formatos permitidos: TXT, PDF y DOCX. Tamaño máximo: 10 MB.
         </p>
 
         <p style="opacity:.75;">

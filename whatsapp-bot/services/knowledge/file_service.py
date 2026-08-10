@@ -1,14 +1,19 @@
 from pathlib import Path
 from uuid import uuid4
 
+from docx import Document
+from pypdf import PdfReader
+
 
 KNOWLEDGE_STORAGE_ROOT = Path("/app/data/knowledge")
 
 ALLOWED_EXTENSIONS = {
     ".txt",
+    ".pdf",
+    ".docx",
 }
 
-MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
 
 def save_knowledge_file(
@@ -17,8 +22,6 @@ def save_knowledge_file(
 ):
     """
     Save one uploaded knowledge file inside its tenant directory.
-
-    Returns metadata describing the stored file.
     """
 
     if not uploaded_file:
@@ -98,13 +101,31 @@ def save_knowledge_file(
     }
 
 
-def extract_text_file(storage_path):
+def extract_knowledge_text(
+    storage_path,
+):
     """
-    Extract plain text from a UTF-8 TXT knowledge file.
+    Extract usable text from a supported knowledge document.
     """
 
     path = Path(storage_path)
+    extension = path.suffix.lower()
 
+    if extension == ".txt":
+        return _extract_txt(path)
+
+    if extension == ".pdf":
+        return _extract_pdf(path)
+
+    if extension == ".docx":
+        return _extract_docx(path)
+
+    raise ValueError(
+        "Unsupported knowledge file type."
+    )
+
+
+def _extract_txt(path):
     try:
         content = path.read_text(
             encoding="utf-8"
@@ -114,17 +135,85 @@ def extract_text_file(storage_path):
             "The TXT file must use UTF-8 encoding."
         ) from exc
 
-    content = content.strip()
+    return _validate_extracted_text(
+        content,
+        "The TXT file does not contain usable text.",
+    )
+
+
+def _extract_pdf(path):
+    try:
+        reader = PdfReader(
+            str(path)
+        )
+
+        parts = []
+
+        for page in reader.pages:
+            text = page.extract_text()
+
+            if text:
+                parts.append(text)
+
+        content = "\n\n".join(parts)
+
+    except Exception as exc:
+        raise ValueError(
+            "The PDF could not be read."
+        ) from exc
+
+    return _validate_extracted_text(
+        content,
+        "The PDF does not contain extractable text.",
+    )
+
+
+def _extract_docx(path):
+    try:
+        document = Document(
+            str(path)
+        )
+
+        parts = []
+
+        for paragraph in document.paragraphs:
+            text = paragraph.text.strip()
+
+            if text:
+                parts.append(text)
+
+        content = "\n\n".join(parts)
+
+    except Exception as exc:
+        raise ValueError(
+            "The DOCX file could not be read."
+        ) from exc
+
+    return _validate_extracted_text(
+        content,
+        "The DOCX file does not contain usable text.",
+    )
+
+
+def _validate_extracted_text(
+    content,
+    empty_message,
+):
+    content = (
+        content or ""
+    ).strip()
 
     if not content:
         raise ValueError(
-            "The TXT file does not contain usable text."
+            empty_message
         )
 
     return content
 
 
-def delete_knowledge_file(storage_path):
+def delete_knowledge_file(
+    storage_path,
+):
     """
     Remove a stored knowledge file when a transaction fails.
     """
