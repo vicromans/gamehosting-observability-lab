@@ -44,7 +44,14 @@ Biblioteca de conocimiento · {{ business.business_name }}
             {% for document in documents %}
                 <tr>
                     <td>
-                        <strong>{{ document.title }}</strong>
+                        <strong>
+                            <a
+                                href="/whatsapp/dashboard/business/{{ business.slug }}/knowledge/{{ document.id }}"
+                                style="color:inherit; text-decoration:none;"
+                            >
+                                {{ document.title }}
+                            </a>
+                        </strong>
 
                         {% if document.original_filename %}
                             <div style="margin-top:4px; opacity:.7;">

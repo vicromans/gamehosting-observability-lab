@@ -8,8 +8,11 @@ from flask import (
 from routes.dashboard_routes import dashboard_bp
 from services.business_service import get_business_by_slug
 from services.knowledge import (
+    archive_document,
     create_document,
+    get_document,
     list_documents,
+    update_document_status,
 )
 from services.knowledge.file_service import (
     delete_knowledge_file,
@@ -40,6 +43,104 @@ def knowledge_library(business_slug):
         documents=documents,
         active_page="knowledge",
     )
+
+
+
+@dashboard_bp.get(
+    "/whatsapp/dashboard/business/<business_slug>/knowledge/<int:document_id>"
+)
+def knowledge_document_detail(business_slug, document_id):
+    """Display one knowledge document within its tenant boundary."""
+
+    business = get_business_by_slug(business_slug)
+
+    if not business:
+        abort(404)
+
+    document = get_document(
+        document_id=document_id,
+        business_id=business["id"],
+    )
+
+    if not document:
+        abort(404)
+
+    return render_template(
+        "knowledge_document_detail.html",
+        business=business,
+        document=document,
+        active_page="knowledge",
+    )
+
+
+
+
+@dashboard_bp.post(
+    "/whatsapp/dashboard/business/<business_slug>/knowledge/<int:document_id>/approve"
+)
+def knowledge_document_approve(business_slug, document_id):
+    """Approve one knowledge document within its tenant boundary."""
+
+    business = get_business_by_slug(business_slug)
+
+    if not business:
+        abort(404)
+
+    document = get_document(
+        document_id=document_id,
+        business_id=business["id"],
+    )
+
+    if not document:
+        abort(404)
+
+    updated = update_document_status(
+        document_id=document_id,
+        business_id=business["id"],
+        status="approved",
+    )
+
+    if not updated:
+        abort(404)
+
+    return redirect(
+        f"/whatsapp/dashboard/business/"
+        f"{business_slug}/knowledge/{document_id}"
+    )
+
+
+@dashboard_bp.post(
+    "/whatsapp/dashboard/business/<business_slug>/knowledge/<int:document_id>/archive"
+)
+def knowledge_document_archive(business_slug, document_id):
+    """Archive one knowledge document within its tenant boundary."""
+
+    business = get_business_by_slug(business_slug)
+
+    if not business:
+        abort(404)
+
+    document = get_document(
+        document_id=document_id,
+        business_id=business["id"],
+    )
+
+    if not document:
+        abort(404)
+
+    archived = archive_document(
+        document_id=document_id,
+        business_id=business["id"],
+    )
+
+    if not archived:
+        abort(404)
+
+    return redirect(
+        f"/whatsapp/dashboard/business/"
+        f"{business_slug}/knowledge"
+    )
+
 
 
 @dashboard_bp.route(

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}
+Revisar conocimiento · {{ business.business_name }}
+{% endblock %}
+
+{% block content %}
+
+{% set page_title = "Revisar conocimiento" %}
+{% set page_subtitle = "Revisa la información antes de autorizar su uso por el asistente de IA." %}
+{% include "components/topbar.html" %}
+
+<section class="card">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+        <div>
+            <h2 style="margin-top:0; margin-bottom:8px;">
+                {{ document.title }}
+            </h2>
+
+            {% if document.original_filename %}
+                <div style="opacity:.7;">
+                    Archivo original: {{ document.original_filename }}
+                </div>
+            {% else %}
+                <div style="opacity:.7;">
+                    Fuente: Texto manual
+                </div>
+            {% endif %}
+        </div>
+
+        <div>
+            {% if document.status == "approved" %}
+                {% set badge_text = "Aprobado" %}
+                {% set badge_variant = "success" %}
+            {% elif document.status == "conflict" %}
+                {% set badge_text = "Conflicto" %}
+                {% set badge_variant = "danger" %}
+            {% elif document.status == "archived" %}
+                {% set badge_text = "Archivado" %}
+                {% set badge_variant = "secondary" %}
+            {% else %}
+                {% set badge_text = "Pendiente" %}
+                {% set badge_variant = "warning" %}
+            {% endif %}
+
+            {% include "components/badge.html" %}
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <h3 style="margin-top:0;">Contenido extraído</h3>
+
+    <p style="opacity:.75;">
+        Este es el contenido que VeldrikLabs almacenó como conocimiento
+        del negocio. Revísalo antes de aprobarlo.
+    </p>
+
+    <div
+        style="
+            white-space:pre-wrap;
+            border:1px solid #ddd;
+            border-radius:8px;
+            padding:18px;
+            line-height:1.6;
+            background:#fafafa;
+            overflow-wrap:anywhere;
+        "
+    >{{ document.notes or "No hay contenido disponible." }}</div>
+</section>
+
+<section class="card">
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+
+        {% if document.status != "approved" %}
+            <form
+                method="POST"
+                action="/whatsapp/dashboard/business/{{ business.slug }}/knowledge/{{ document.id }}/approve"
+                style="margin:0;"
+            >
+                <button
+                    class="btn btn-primary"
+                    type="submit"
+                >
+                    Aprobar conocimiento
+                </button>
+            </form>
+        {% endif %}
+
+        {% if document.status != "archived" %}
+            <form
+                method="POST"
+                action="/whatsapp/dashboard/business/{{ business.slug }}/knowledge/{{ document.id }}/archive"
+                style="margin:0;"
+            >
+                <button
+                    class="btn"
+                    type="submit"
+                >
+                    Archivar
+                </button>
+            </form>
+        {% endif %}
+
+        <a
+            class="btn"
+            href="/whatsapp/dashboard/business/{{ business.slug }}/knowledge"
+        >
+            ← Volver a la biblioteca
+        </a>
+    </div>
+</section>
+
+{% endblock %}
