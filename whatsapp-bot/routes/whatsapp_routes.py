@@ -4,6 +4,8 @@ from flask import Blueprint, jsonify, request
 
 from database.connection import get_db_connection
 from services.business_service import get_business_by_phone
+from services.beauty.ai_service import BeautyAIService
+from services.beauty.routing import should_use_beauty_ai
 from services.conversation.engine import build_replies
 from services.wellness.ai_service import WellnessAIService
 from services.conversation.human import mark_human_required
@@ -119,6 +121,25 @@ def receive_message():
                 reply = wellness_response.content
                 replies = [reply]
                 intent = "wellness_ai"
+
+            elif (
+                business_type == "beauty"
+                and should_use_beauty_ai(
+                    incoming_message,
+                    phone_number,
+                )
+            ):
+                beauty_service = BeautyAIService(
+                    business_id=business_id,
+                )
+
+                beauty_response = beauty_service.ask(
+                    incoming_message,
+                )
+
+                reply = beauty_response.content
+                replies = [reply]
+                intent = "beauty_ai"
 
             else:
                 replies = build_replies(
