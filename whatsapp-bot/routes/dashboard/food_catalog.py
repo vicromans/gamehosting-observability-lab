@@ -90,6 +90,13 @@ def _validate_food_catalog_form(form_data):
             None,
         )
 
+    if not form_data["category"]:
+        return (
+            "La categoría del platillo es obligatoria.",
+            None,
+            None,
+        )
+
     if (
         form_data["has_surcharge"]
         and not form_data["included_in_meal"]
@@ -184,6 +191,10 @@ def dashboard_food_catalog(slug):
         business["id"],
         include_inactive=True,
     )
+
+    for item in catalog_items:
+        if not item.get("category"):
+            item["category"] = "Sin categoría"
 
     return render_template(
         "food_catalog.html",
