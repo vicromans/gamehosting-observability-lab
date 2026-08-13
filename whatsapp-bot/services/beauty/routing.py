@@ -88,11 +88,10 @@ def should_use_beauty_ai(message, phone_number):
     if not text:
         return False
 
-    # Never interrupt an active legacy conversation flow.
+    # Inspect the active legacy flow. Informational side questions
+    # may use AI without modifying or consuming conversation_state.
     state = conversation_state.get(phone_number, {})
-
-    if state.get("step"):
-        return False
+    active_step = state.get("step")
 
     # Preserve human handoff.
     if is_human_required(phone_number):
@@ -120,6 +119,45 @@ def should_use_beauty_ai(message, phone_number):
     # Cheap/simple greetings can remain deterministic.
     if text in GREETING_ONLY:
         return False
+
+    # During an active booking, only clearly informational questions
+    # may temporarily use AI. Booking answers must remain in the
+    # deterministic legacy flow so the appointment can continue.
+    if active_step:
+        informational_markers = (
+            "qué",
+            "que ",
+            "cuánto",
+            "cuanto",
+            "cuántos",
+            "cuantos",
+            "cómo",
+            "como ",
+            "por qué",
+            "porque",
+            "garantía",
+            "garantia",
+            "precio",
+            "costo",
+            "cuesta",
+            "dura",
+            "duración",
+            "duracion",
+            "cuidado",
+            "cuidados",
+            "esperar",
+            "bañar",
+            "banar",
+            "lavar",
+            "puedo",
+            "debo",
+        )
+
+        if not any(
+            marker in text
+            for marker in informational_markers
+        ):
+            return False
 
     # Everything else is informational/conversational AI territory.
     return True
