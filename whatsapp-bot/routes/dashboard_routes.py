@@ -99,8 +99,7 @@ def dashboard():
 
     try:
         with connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM businesses WHERE id = 1")
-            business = cursor.fetchone()
+            business = get_default_business()
 
             cursor.execute("""
                 SELECT id, phone_number, customer_name, allergy_notes, accepted_policies, human_required, last_contact

@@ -7,6 +7,7 @@ from flask import redirect, render_template, request
 from database.connection import get_db_connection
 from routes.dashboard import dashboard_bp
 from services.appointment_service import get_business_time_slots
+from services.business_service import get_default_business
 
 
 @dashboard_bp.get("/whatsapp/dashboard/agenda")
@@ -43,8 +44,7 @@ def dashboard_agenda():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM businesses WHERE id = %s", (1,))
-    business = cursor.fetchone()
+    business = get_default_business()
 
     cursor.execute("""
         SELECT
