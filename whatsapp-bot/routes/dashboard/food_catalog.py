@@ -21,6 +21,7 @@ def _empty_food_catalog_form():
     return {
         "item_name": "",
         "category": "",
+        "subcategory": "",
         "description": "",
         "included_in_meal": True,
         "has_surcharge": False,
@@ -34,6 +35,7 @@ def _food_catalog_form_from_item(item):
     return {
         "item_name": item.get("item_name") or "",
         "category": item.get("category") or "",
+        "subcategory": item.get("subcategory") or "",
         "description": item.get("description") or "",
         "included_in_meal": bool(item.get("included_in_meal")),
         "has_surcharge": bool(item.get("has_surcharge")),
@@ -59,6 +61,7 @@ def _food_catalog_form_from_request():
     return {
         "item_name": request.form.get("item_name", "").strip(),
         "category": request.form.get("category", "").strip(),
+        "subcategory": request.form.get("subcategory", "").strip(),
         "description": request.form.get("description", "").strip(),
         "included_in_meal": (
             request.form.get("included_in_meal") == "1"
@@ -96,6 +99,30 @@ def _validate_food_catalog_form(form_data):
             None,
             None,
         )
+
+    allowed_guisado_subcategories = {
+        "Pollo",
+        "Res",
+        "Cerdo",
+        "Verduras",
+    }
+
+    if form_data["category"] == "Guisados":
+        if not form_data["subcategory"]:
+            return (
+                "Selecciona el tipo de guisado.",
+                None,
+                None,
+            )
+
+        if form_data["subcategory"] not in allowed_guisado_subcategories:
+            return (
+                "El tipo de guisado seleccionado no es válido.",
+                None,
+                None,
+            )
+    else:
+        form_data["subcategory"] = ""
 
     if (
         form_data["has_surcharge"]
@@ -236,6 +263,7 @@ def dashboard_food_catalog_new(slug):
                 business_id=business["id"],
                 item_name=form_data["item_name"],
                 category=form_data["category"] or None,
+                subcategory=form_data["subcategory"] or None,
                 description=form_data["description"] or None,
                 included_in_meal=form_data["included_in_meal"],
                 has_surcharge=form_data["has_surcharge"],
@@ -308,6 +336,7 @@ def dashboard_food_catalog_edit(slug, item_id):
                 item_id=item_id,
                 item_name=form_data["item_name"],
                 category=form_data["category"] or None,
+                subcategory=form_data["subcategory"] or None,
                 description=form_data["description"] or None,
                 included_in_meal=form_data["included_in_meal"],
                 has_surcharge=form_data["has_surcharge"],

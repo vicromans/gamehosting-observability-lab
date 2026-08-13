@@ -23,6 +23,10 @@
         font-weight: 600;
     }
 
+    .catalog-form [hidden] {
+        display: none !important;
+    }
+
     .catalog-form input,
     .catalog-form select,
     .catalog-form textarea {
@@ -126,8 +130,8 @@
 
         <label>
             Categoría
-            <select name="category">
-                <option value="">Sin categoría</option>
+            <select name="category" required>
+                <option value="">Selecciona una categoría</option>
 
                 {% for category in [
                     "Sopas",
@@ -145,6 +149,30 @@
                     {% if form_data.category == category %}selected{% endif %}
                 >
                     {{ category }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label
+            id="subcategory-field"
+            {% if form_data.category != "Guisados" %}hidden{% endif %}
+        >
+            Tipo de guisado
+            <select name="subcategory">
+                <option value="">Selecciona el tipo de guisado</option>
+
+                {% for subcategory in [
+                    "Pollo",
+                    "Res",
+                    "Cerdo",
+                    "Verduras"
+                ] %}
+                <option
+                    value="{{ subcategory }}"
+                    {% if form_data.subcategory == subcategory %}selected{% endif %}
+                >
+                    {{ subcategory }}
                 </option>
                 {% endfor %}
             </select>
@@ -260,6 +288,16 @@
 
 <script>
 (function () {
+    const categoryInput = document.querySelector(
+        'select[name="category"]'
+    );
+    const subcategoryField = document.getElementById(
+        "subcategory-field"
+    );
+    const subcategoryInput = document.querySelector(
+        'select[name="subcategory"]'
+    );
+
     const includedInput = document.querySelector(
         'input[name="included_in_meal"]'
     );
@@ -283,6 +321,15 @@
     );
 
     function updateFields() {
+        const isGuisado = categoryInput.value === "Guisados";
+
+        subcategoryField.hidden = !isGuisado;
+        subcategoryInput.required = isGuisado;
+
+        if (!isGuisado) {
+            subcategoryInput.value = "";
+        }
+
         if (!includedInput.checked) {
             surchargeInput.checked = false;
             surchargeAmount.value = "";
@@ -307,6 +354,7 @@
         );
     }
 
+    categoryInput.addEventListener("change", updateFields);
     includedInput.addEventListener("change", updateFields);
     surchargeInput.addEventListener("change", updateFields);
     individualInput.addEventListener("change", updateFields);

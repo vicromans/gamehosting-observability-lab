@@ -6,6 +6,7 @@ CATALOG_FIELDS = """
     business_id,
     item_name,
     category,
+    subcategory,
     description,
     included_in_meal,
     has_surcharge,
@@ -38,6 +39,7 @@ def list_catalog_items(business_id, include_inactive=False):
             query += """
                 ORDER BY
                     category ASC,
+                    subcategory ASC,
                     display_order ASC,
                     item_name ASC
             """
@@ -72,6 +74,7 @@ def create_catalog_item(
     business_id,
     item_name,
     category=None,
+    subcategory=None,
     description=None,
     included_in_meal=True,
     has_surcharge=False,
@@ -92,6 +95,7 @@ def create_catalog_item(
                     business_id,
                     item_name,
                     category,
+                    subcategory,
                     description,
                     included_in_meal,
                     has_surcharge,
@@ -104,13 +108,14 @@ def create_catalog_item(
                 )
                 VALUES (
                     %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s
                 )
                 """,
                 (
                     business_id,
                     item_name,
                     category,
+                    subcategory,
                     description,
                     1 if included_in_meal else 0,
                     1 if has_surcharge else 0,
@@ -135,6 +140,7 @@ def update_catalog_item(
     item_id,
     item_name,
     category=None,
+    subcategory=None,
     description=None,
     included_in_meal=True,
     has_surcharge=False,
@@ -155,6 +161,7 @@ def update_catalog_item(
                 SET
                     item_name = %s,
                     category = %s,
+                    subcategory = %s,
                     description = %s,
                     included_in_meal = %s,
                     has_surcharge = %s,
@@ -170,6 +177,7 @@ def update_catalog_item(
                 (
                     item_name,
                     category,
+                    subcategory,
                     description,
                     1 if included_in_meal else 0,
                     1 if has_surcharge else 0,
